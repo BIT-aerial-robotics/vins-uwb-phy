@@ -7,7 +7,7 @@ num_of_cam: 2
 imu_topic: "/imu_1"
 image0_topic: "/camera2/image"
 image1_topic: "/camera1/image"
-output_path: "/home/f404/bag/"
+output_path: "/home/f404/output/bag"
 
 cam0_calib: "cam0_pinhole.yaml"
 cam1_calib: "cam1_pinhole.yaml"
@@ -61,7 +61,7 @@ body_T_cam1: !!opencv-matrix
 multiple_thread: 1
 
 #feature traker paprameters
-max_cnt: 125            # max feature number in feature tracking
+max_cnt: 150            # max feature number in feature tracking
 min_dist: 30            # min distance between two features 
 freq: 10                # frequence (Hz) of publish tracking result. At least 10Hz for good estimation. If set 0, the frequence will be same as raw image 
 F_threshold: 1.0        # ransac threshold (pixel)
