@@ -24,7 +24,7 @@ ros::Publisher pub_keyframe_point;
 ros::Publisher pub_extrinsic;
 
 ros::Publisher pub_image_track;
-
+ros::Publisher pub_image_track_line;
 CameraPoseVisualization cameraposevisual(1, 0, 0, 1);
 static double sum_of_path = 0;
 static Vector3d last_path(0.0, 0.0, 0.0);
@@ -45,6 +45,7 @@ void registerPub(ros::NodeHandle &n)
     pub_keyframe_point = n.advertise<sensor_msgs::PointCloud>("keyframe_point", 1000);
     pub_extrinsic = n.advertise<nav_msgs::Odometry>("extrinsic", 1000);
     pub_image_track = n.advertise<sensor_msgs::Image>("image_track", 1000);
+    pub_image_track_line=n.advertise<sensor_msgs::Image>("image_track_line", 1000);
 
     cameraposevisual.setScale(0.1);
     cameraposevisual.setLineWidth(0.01);
@@ -65,6 +66,7 @@ void pubLatestOdometry(const Eigen::Vector3d &P, const Eigen::Quaterniond &Q, co
     odometry.twist.twist.linear.x = V.x();
     odometry.twist.twist.linear.y = V.y();
     odometry.twist.twist.linear.z = V.z();
+    odometry.twist.twist.angular.x=P.norm();
     pub_latest_odometry.publish(odometry);
 }
 
@@ -75,6 +77,14 @@ void pubTrackImage(const cv::Mat &imgTrack, const double t)
     header.stamp = ros::Time(t);
     sensor_msgs::ImagePtr imgTrackMsg = cv_bridge::CvImage(header, "bgr8", imgTrack).toImageMsg();
     pub_image_track.publish(imgTrackMsg);
+}
+void pubTrackImageLine(const cv::Mat &imgTrack, const double t)
+{
+    std_msgs::Header header;
+    header.frame_id = "world";
+    header.stamp = ros::Time(t);
+    sensor_msgs::ImagePtr imgTrackMsg = cv_bridge::CvImage(header, "bgr8", imgTrack).toImageMsg();
+    pub_image_track_line.publish(imgTrackMsg);
 }
 
 
@@ -170,8 +180,8 @@ void pubOdometry(const Estimator &estimator, const std_msgs::Header &header)
               << estimator.Vs[WINDOW_SIZE].z() << "," << endl;
         foutC.close();
         Eigen::Vector3d tmp_T = estimator.Ps[WINDOW_SIZE];
-        printf("time: %f, t: %f %f %f q: %f %f %f %f \n", header.stamp.toSec(), tmp_T.x(), tmp_T.y(), tmp_T.z(),
-                                                          tmp_Q.w(), tmp_Q.x(), tmp_Q.y(), tmp_Q.z());
+        printf("time: %f, t: %f %f %f q: %f %f %f %f %lf\n", header.stamp.toSec(), tmp_T.x(), tmp_T.y(), tmp_T.z(),
+                                                          tmp_Q.w(), tmp_Q.x(), tmp_Q.y(), tmp_Q.z(),estimator.para_UWB_bias[0][0]);
     }
 }
 

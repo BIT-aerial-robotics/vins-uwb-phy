@@ -29,14 +29,17 @@
 #include "../initial/initial_alignment.h"
 #include "../initial/initial_ex_rotation.h"
 #include "../factor/imu_factor.h"
+#include "../factor/uwb_factor.h"
 #include "../factor/pose_local_parameterization.h"
 #include "../factor/marginalization_factor.h"
+#include "../factor/line_parameterization.h"
+#include "../factor/line_projection_factor.h"
 #include "../factor/projectionTwoFrameOneCamFactor.h"
 #include "../factor/projectionTwoFrameTwoCamFactor.h"
 #include "../factor/projectionOneFrameTwoCamFactor.h"
 #include "../featureTracker/feature_tracker.h"
-
-
+#include "../featureTracker/feature_tracker_line.h"
+#include "uwb_manager.h"
 class Estimator
 {
   public:
@@ -51,6 +54,8 @@ class Estimator
     void inputImage(double t, const cv::Mat &_img, const cv::Mat &_img1 = cv::Mat());
     void processIMU(double t, double dt, const Vector3d &linear_acceleration, const Vector3d &angular_velocity);
     void processImage(const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, const double header);
+    void processImage(const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image,
+    const map<int, vector<pair<int, Vector4d>>> &image_line, const double header);
     void processMeasurements();
     void changeSensorType(int use_imu, int use_stereo);
 
@@ -79,7 +84,22 @@ class Estimator
     void fastPredictIMU(double t, Eigen::Vector3d linear_acceleration, Eigen::Vector3d angular_velocity);
     bool IMUAvailable(double t);
     void initFirstIMUPose(vector<pair<double, Eigen::Vector3d>> &accVector);
-
+    void onlyLineOpt();   // 三角化以后，优化一把
+    void optimizationwithLine();
+    void double2vector2();
+    void inputRange(int id,double t,double dis);
+    bool getRange(int id,double t,double &dis);
+    void getPoseAndUWB(int &tot, std::map<double, int> &mp);
+    void eigenTarrarYaw(Eigen::Vector3d x, Eigen::Quaterniond q, double val[]);
+    void arrayTeigenYaw(double val[],Eigen::Vector3d &x,Eigen::Quaterniond &q);
+    void eigenTarrarYaw(Eigen::Vector3d x, Eigen::Matrix3d q, double val[]);
+    void arrayTeigenYaw(double val[],Eigen::Vector3d &x,Eigen::Matrix3d &q);
+    void inputGT(int id,OdometryVins tmp);
+    bool getRTformGT(int i,double time,Eigen::Vector3d &p,Eigen::Matrix3d &q,Eigen::Vector3d sp,Eigen::Matrix3d sq);
+    bool getRTformMap(int i,double time,Eigen::Vector3d &p,Eigen::Matrix3d &q);
+    void save_rt();
+    void clearMap();
+    //bool queryOdometry(map<double,OdometryVins>mp,double time,OdometryVins &query);
     enum SolverFlag
     {
         INITIAL,
@@ -95,9 +115,11 @@ class Estimator
     std::mutex mProcess;
     std::mutex mBuf;
     std::mutex mPropagate;
+    std::mutex mRT;
     queue<pair<double, Eigen::Vector3d>> accBuf;
     queue<pair<double, Eigen::Vector3d>> gyrBuf;
     queue<pair<double, map<int, vector<pair<int, Eigen::Matrix<double, 7, 1> > > > > > featureBuf;
+    queue<pair<double,pair<map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> , map<int, vector<pair<int, Vector4d>>> >>> featureWithLineBuf;
     double prevTime, curTime;
     bool openExEstimation;
 
@@ -105,6 +127,7 @@ class Estimator
     std::thread processThread;
 
     FeatureTracker featureTracker;
+    FeatureTrackerLine line_feature_tracker;
 
     SolverFlag solver_flag;
     MarginalizationFlag  marginalization_flag;
@@ -156,7 +179,7 @@ class Estimator
     double para_Retrive_Pose[SIZE_POSE];
     double para_Td[1][1];
     double para_Tr[1][1];
-
+    double para_LineFeature[NUM_OF_F][SIZE_LINE];
     int loop_window_index;
 
     MarginalizationInfo *last_marginalization_info;
@@ -174,4 +197,23 @@ class Estimator
 
     bool initFirstPoseFlag;
     bool initThreadFlag;
+
+    int frame_sol_cnt;
+    std::map<double,double>range_map[5];
+    std::map<double,OdometryVins>gt_map[5];
+    std::map<double,OdometryVins>other_RT_map[5];
+    int uwb_length=0;
+    double uwb_fre_time[WINDOW_SIZE*30];
+    std::map<double, int> uwb_2_index;
+    int    uwb_can[5][(WINDOW_SIZE + 1)*30];
+    double uwb_mea[5][(WINDOW_SIZE + 1)*30];
+    double para_UWB_anchor[5][3];
+    double para_UWB_bias[5][1];
+    Eigen::Vector3d UWB_anchor[5];
+    double para_uwb_local_world_Rt[(WINDOW_SIZE + 1)*30][SIZE_POSE];
+
+
+    int to_world_rt_flag;
+
+    
 };

@@ -1,14 +1,3 @@
-/*******************************************************
- * Copyright (C) 2019, Aerial Robotics Group, Hong Kong University of Science and Technology
- * 
- * This file is part of VINS.
- * 
- * Licensed under the GNU General Public License v3.0;
- * you may not use this file except in compliance with the License.
- *
- * Author: Qin Tong (qintonguav@gmail.com)
- *******************************************************/
-
 #include <stdio.h>
 #include <queue>
 #include <map>
@@ -20,16 +9,24 @@
 #include "estimator/estimator.h"
 #include "estimator/parameters.h"
 #include "utility/visualization.h"
-
+#include "estimator/uwb_manager.h"
+#include "nlink_parser/LinktrackNodeframe2.h"
 Estimator estimator;
-
 queue<sensor_msgs::ImuConstPtr> imu_buf;
 queue<sensor_msgs::PointCloudConstPtr> feature_buf;
 queue<sensor_msgs::ImageConstPtr> img0_buf;
 queue<sensor_msgs::ImageConstPtr> img1_buf;
+UWBManager uwb_manager[5];
 std::mutex m_buf;
 
-
+// 设置随机数生成器
+std::default_random_engine generator;
+std::normal_distribution<double> noise_normal_distribution(0.0, 0.05);
+std::uniform_real_distribution<double> noise_uniform_distribution(-0.1, 0.1);  // 均匀分布
+ros::Publisher pub_range_raw;
+ros::Publisher pub_range_data;
+double anomaly_probability = 0.05;  // 异常值出现的概率
+double anomaly_magnitude = 10.0;   // 异常值的大小
 void img0_callback(const sensor_msgs::ImageConstPtr &img_msg)
 {
     m_buf.lock();
@@ -180,6 +177,112 @@ void feature_callback(const sensor_msgs::PointCloudConstPtr &feature_msg)
     return;
 }
 
+
+
+int first_uwb=0;
+Eigen::Vector3d anchor_create_pos[5]={
+    Eigen::Vector3d(0,0,1.5),
+    Eigen::Vector3d(5,0,1.5),
+    Eigen::Vector3d(0,5,1.5),
+    Eigen::Vector3d(5,5,1.5)
+};
+const int ANCHORNUMBER=4;
+double getNoiseRandomValue(double dis)
+{
+    double noisy_value = noise_normal_distribution(generator);
+    double anomaly_probability = noise_uniform_distribution(generator);
+    noisy_value=0;
+    // 如果满足异常概率，引入异常值
+    // if (abs(anomaly_probability) < 0.0025) {
+    //     // 异常值突变，大小和概率均随机
+    //     double anomaly_magnitude = noise_normal_distribution(generator)*8+noise_uniform_distribution(generator)*8;
+    //     noisy_value += anomaly_magnitude;
+    // }
+    return noisy_value;
+}
+void ground_truth_callback(const nav_msgs::OdometryConstPtr &msg)
+{
+    m_buf.lock();
+    Eigen::Vector3d ps,vs,ws;
+    Eigen::Quaterniond rs;
+    tf::pointMsgToEigen(msg->pose.pose.position, ps);
+    tf::vectorMsgToEigen(msg->twist.twist.linear, vs);
+    tf::vectorMsgToEigen(msg->twist.twist.angular, ws);
+    tf::quaternionMsgToEigen(msg->pose.pose.orientation,rs);
+    OdometryVins tmp(ps,vs,ws,rs,msg->header.stamp.toSec());
+    estimator.inputGT(AGENT_NUMBER,tmp);
+    double time=msg->header.stamp.toSec();
+    geometry_msgs::PoseArray raw,data;
+    raw.header=msg->header;
+    data.header=msg->header;
+    // //nlink_parser::LinktrackNodeframe2 frame;
+    for(int i=0;i<ANCHORNUMBER;i++){
+        double range=(ps-anchor_create_pos[i]).norm();
+        double range2=range+getNoiseRandomValue(range);
+        bool res=uwb_manager[i].addUWBMeasurements(0,time,range2);
+        geometry_msgs::Pose raw_pose;
+        raw_pose.position.x=range2;
+        raw_pose.position.y=range;
+        //frame.nodes[i]=range;
+        raw.poses.push_back(raw_pose);
+        if(res){
+           double dis=uwb_manager[i].uwb_range_sol_data[0].back().range;
+           estimator.inputRange(i,time,dis);
+           geometry_msgs::Pose data_pose;
+           data_pose.position.x=dis;
+           data.poses.push_back(data_pose);
+        }
+        else{
+            geometry_msgs::Pose data_pose;
+            data_pose.position.x=-1;
+            data.poses.push_back(data_pose);
+        }
+    }
+    pub_range_raw.publish(raw);
+    pub_range_data.publish(data);
+    //nav_msgs::OdometryConstPtr odomPtr = boost::make_shared<const nav_msgs::Odometry>(odom);
+    m_buf.unlock();
+}
+void uwb_callback(const nlink_parser::LinktrackNodeframe2ConstPtr &msg)
+{
+    m_buf.lock();
+    uint32_t num_nodes = msg->nodes.size();
+    int id=msg->id;
+    nlink_parser::LinktrackNodeframe2 tmp=*msg;
+    // 遍历 nodes 数组
+    
+    for (uint32_t i = 0; i < num_nodes; ++i) {
+        // 获取当前节点
+        const nlink_parser::LinktrackNode2& node = msg->nodes[i];
+        //printf("%d %lf  ",node.id,node.dis);
+        //stats.update(node.dis*100);
+        double time;
+        if(first_uwb==0)
+        {
+            time=1703644124.77;
+            first_uwb=msg->system_time;
+        }
+        else
+        {
+            time=1703644124.77+(msg->system_time-first_uwb)*1.00/1000.00;
+        }
+        int id=0;
+        bool res=uwb_manager[0].addUWBMeasurements(id,time,node.dis);
+        double dis=uwb_manager[0].uwb_range_sol_data[0].back().range;
+        tmp.nodes[i].dis=dis;
+        if(res){
+            //printf("!!! %d %lf %lf\n",id,time,dis);
+            estimator.inputRange(id,time,dis);
+        }
+        //pub_feature.publish(tmp);
+        
+        //std::cout << "Mean: " << stats.mean() << ", Variance: " << stats.variance() << std::endl;
+        // 在这里使用 node 进行操作 
+        // 例如：node.role, node.id, node.local_time, 等等
+    }
+    m_buf.unlock();
+    //printf("\n");
+}
 void restart_callback(const std_msgs::BoolConstPtr &restart_msg)
 {
     if (restart_msg->data == true)
@@ -248,7 +351,9 @@ int main(int argc, char **argv)
     ROS_WARN("waiting for image and imu...");
 
     registerPub(n);
-
+    for(int i=0;i<5;i++){
+        
+    }
     ros::Subscriber sub_imu;
     if(USE_IMU)
     {
@@ -264,7 +369,22 @@ int main(int argc, char **argv)
     ros::Subscriber sub_restart = n.subscribe("/vins_restart", 100, restart_callback);
     ros::Subscriber sub_imu_switch = n.subscribe("/vins_imu_switch", 100, imu_switch_callback);
     ros::Subscriber sub_cam_switch = n.subscribe("/vins_cam_switch", 100, cam_switch_callback);
-
+    ros::Subscriber sub_uwb_range = n.subscribe("/nlink_linktrack_nodeframe2", 2000, uwb_callback);
+    pub_range_raw=n.advertise<geometry_msgs::PoseArray>("ag"+std::to_string(AGENT_NUMBER)+"/range_raw", 1000);
+    pub_range_data=n.advertise<geometry_msgs::PoseArray>("ag"+std::to_string(AGENT_NUMBER)+"/range_sol", 1000);
+    ros::Subscriber sub_gt;
+    if(AGENT_NUMBER==3){
+        sub_gt=n.subscribe("/pose_2", 2000, ground_truth_callback);
+    }
+    else if(AGENT_NUMBER==2){
+        sub_gt=n.subscribe("/pose_3", 2000, ground_truth_callback);
+    }
+    else if(AGENT_NUMBER==1){
+        sub_gt=n.subscribe("/pose_1", 2000, ground_truth_callback);
+    }
+    for(int i=0;i<=4;i++){
+        uwb_manager[i]=UWBManager(1,vector<Eigen::Vector3d>(1,anchor_create_pos[i]));
+    }
     std::thread sync_thread{sync_process};
     ros::spin();
 

@@ -21,10 +21,11 @@ using namespace Eigen;
 
 #include <ros/console.h>
 #include <ros/assert.h>
-
+#include <eigen3/Eigen/Dense>
+#include <eigen3/Eigen/Geometry>
 #include "parameters.h"
 #include "../utility/tic_toc.h"
-
+#include "../featureTracker/feature_tracker_line.h"
 class FeaturePerFrame
 {
   public:
@@ -58,6 +59,33 @@ class FeaturePerFrame
     bool is_stereo;
 };
 
+
+class FeatureLinePerFrame
+{
+  public:
+    FeatureLinePerFrame(const Eigen::Vector4d &_line, double td)
+    {
+        lineobs=_line;
+        cur_td = td;
+        is_stereo = false;
+    }
+    void rightObservation(const Eigen::Vector4d &_line)
+    {
+        lineobs_R=_line;
+        is_stereo = true;
+    }
+    Eigen::Vector4d lineobs;   // 每一帧上的观测
+    Eigen::Vector4d lineobs_R;
+    double z;
+    bool is_used;
+    double parallax;
+    Eigen::MatrixXd A;
+    Eigen::VectorXd b;
+    double dep_gradient;
+    double cur_td;
+    Eigen::Vector4d line,lineRight;
+    bool is_stereo;
+};
 class FeaturePerId
 {
   public:
@@ -77,6 +105,41 @@ class FeaturePerId
     int endFrame();
 };
 
+class FeatureLinePerId
+{
+  public:
+    const int feature_id;
+    int start_frame;
+    vector<FeatureLinePerFrame> feature_line_per_frame;
+    bool is_outlier;
+    bool is_margin;
+    bool is_triangulation;
+    Vector6d line_plucker;
+    Eigen::Vector4d obs_init;
+    Eigen::Vector4d obs_j;
+    Vector6d line_plk_init; // used to debug
+    Eigen::Vector3d ptw1;  // used to debug
+    Eigen::Vector3d ptw2;  // used to debug
+    Eigen::Vector3d tj_;   // tij
+    Eigen::Matrix3d Rj_;
+    Eigen::Vector3d ti_;   // tij
+    Eigen::Matrix3d Ri_;
+    int removed_cnt;
+    int all_obs_cnt;    // 总共观测多少次了？
+    int solve_flag; // 0 haven't solve yet; 1 solve succ; 2 solve fail;
+    int used_num;
+
+    FeatureLinePerId(int _feature_id, int _start_frame)
+            : feature_id(_feature_id), start_frame(_start_frame),
+              used_num(0), solve_flag(0),is_triangulation(false)
+    {
+        removed_cnt = 0;
+        all_obs_cnt = 1;
+    }
+
+    int endFrame();
+};
+
 class FeatureManager
 {
   public:
@@ -86,6 +149,8 @@ class FeatureManager
     void clearState();
     int getFeatureCount();
     bool addFeatureCheckParallax(int frame_count, const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, double td);
+    bool addFeatureCheckParallax(int frame_count, const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image,
+    const map<int, vector<pair<int,Eigen::Vector4d> > > &imageLine ,double td);
     vector<pair<Vector3d, Vector3d>> getCorresponding(int frame_count_l, int frame_count_r);
     //void updateDepth(const VectorXd &x);
     void setDepth(const VectorXd &x);
@@ -93,6 +158,7 @@ class FeatureManager
     void clearDepth();
     VectorXd getDepthVector();
     void triangulate(int frameCnt, Vector3d Ps[], Matrix3d Rs[], Vector3d tic[], Matrix3d ric[]);
+    void triangulateWithLine(int frameCnt, Vector3d Ps[], Matrix3d Rs[], Vector3d tic[], Matrix3d ric[]);
     void triangulatePoint(Eigen::Matrix<double, 3, 4> &Pose0, Eigen::Matrix<double, 3, 4> &Pose1,
                             Eigen::Vector2d &point0, Eigen::Vector2d &point1, Eigen::Vector3d &point_3d);
     void initFramePoseByPnP(int frameCnt, Vector3d Ps[], Matrix3d Rs[], Vector3d tic[], Matrix3d ric[]);
@@ -102,14 +168,23 @@ class FeatureManager
     void removeBack();
     void removeFront(int frame_count);
     void removeOutlier(set<int> &outlierIndex);
+    void removeLineOutlier();
+    void removeLineOutlier(Matrix3d Rs2[],Vector3d Ps[], Vector3d tic[], Matrix3d ric[]);
+    Eigen::MatrixXd getLineOrthVectorInCamera();
+    Eigen::MatrixXd getLineOrthVector(Eigen::Vector3d Ps[], Vector3d tic[], Matrix3d ric[]);
+    int getLineFeatureCount();
+    void setLineOrthInCamera(MatrixXd x);
+    void setLineOrth(MatrixXd x, Vector3d Ps[], Matrix3d Rs[],Vector3d tic[], Matrix3d ric[]);
     list<FeaturePerId> feature;
-    int last_track_num;
-    double last_average_parallax;
-    int new_feature_num;
-    int long_track_num;
+    list<FeatureLinePerId> feature_line;
+    int last_track_num,last_track_line_num;
+    double last_average_parallax,last_average_line_parallax;
+    int new_feature_num,new_feature_line_num;
+    int long_track_num,long_track_line_num;
 
   private:
     double compensatedParallax2(const FeaturePerId &it_per_id, int frame_count);
+    double compensatedParallaxLine(const FeatureLinePerId &it_per_id, int frame_count);
     const Matrix3d *Rs;
     Matrix3d ric[2];
 };

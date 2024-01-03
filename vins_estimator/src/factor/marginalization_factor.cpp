@@ -11,20 +11,23 @@
 
 void ResidualBlockInfo::Evaluate()
 {
+    //ROS_INFO("1 residuals");
     residuals.resize(cost_function->num_residuals());
 
     std::vector<int> block_sizes = cost_function->parameter_block_sizes();
     raw_jacobians = new double *[block_sizes.size()];
+    //ROS_INFO("2 jacobians");
     jacobians.resize(block_sizes.size());
-
+    //ROS_INFO("3 jacobians[i].resize");
     for (int i = 0; i < static_cast<int>(block_sizes.size()); i++)
     {
         jacobians[i].resize(cost_function->num_residuals(), block_sizes[i]);
         raw_jacobians[i] = jacobians[i].data();
         //dim += block_sizes[i] == 7 ? 6 : block_sizes[i];
     }
+    
     cost_function->Evaluate(parameter_blocks.data(), residuals.data(), raw_jacobians);
-
+    //ROS_INFO("4 finish");
     //std::vector<int> tmp_idx(block_sizes.size());
     //Eigen::MatrixXd tmp(dim, dim);
     //for (int i = 0; i < static_cast<int>(parameter_blocks.size()); i++)
@@ -118,10 +121,13 @@ void MarginalizationInfo::addResidualBlockInfo(ResidualBlockInfo *residual_block
 
 void MarginalizationInfo::preMarginalize()
 {
+    int opt=0;
     for (auto it : factors)
     {
+        opt++;
+        //ROS_INFO("%d opt begin Evaluate ",opt);
         it->Evaluate();
-
+        //ROS_INFO("%d opt end Evaluate ",opt);
         std::vector<int> block_sizes = it->cost_function->parameter_block_sizes();
         for (int i = 0; i < static_cast<int>(block_sizes.size()); i++)
         {

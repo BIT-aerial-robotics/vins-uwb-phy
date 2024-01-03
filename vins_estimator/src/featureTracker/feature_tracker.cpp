@@ -10,7 +10,6 @@
  *******************************************************/
 
 #include "feature_tracker.h"
-
 bool FeatureTracker::inBorder(const cv::Point2f &pt)
 {
     const int BORDER_SIZE = 1;
@@ -258,6 +257,7 @@ map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> FeatureTracker::trackIm
         prevLeftPtsMap[ids[i]] = cur_pts[i];
 
     map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> featureFrame;
+    //printf("point feature id:");
     for (size_t i = 0; i < ids.size(); i++)
     {
         int feature_id = ids[i];
@@ -276,7 +276,8 @@ map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> FeatureTracker::trackIm
         Eigen::Matrix<double, 7, 1> xyz_uv_velocity;
         xyz_uv_velocity << x, y, z, p_u, p_v, velocity_x, velocity_y;
         featureFrame[feature_id].emplace_back(camera_id,  xyz_uv_velocity);
-    }
+        //printf("%d ",feature_id);
+    }//printf("\n");
 
     if (!_img1.empty() && stereo_cam)
     {

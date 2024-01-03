@@ -43,7 +43,18 @@ class IntegrationBase
         gyr_buf.push_back(gyr);
         propagate(dt, acc, gyr);
     }
-
+    void push_back(double dt, const Eigen::Vector3d &acc, const Eigen::Vector3d &gyr,double t)
+    {
+        last_t=t;
+        last_t_buf.push_back(t);
+        dt_buf.push_back(dt);
+        acc_buf.push_back(acc);
+        gyr_buf.push_back(gyr);
+        propagate(dt, acc, gyr);
+        delta_p_buf.push_back(delta_p);
+        delta_v_buf.push_back(delta_v);
+        delta_q_buf.push_back(delta_q);
+    }
     void repropagate(const Eigen::Vector3d &_linearized_ba, const Eigen::Vector3d &_linearized_bg)
     {
         sum_dt = 0.0;
@@ -197,7 +208,7 @@ class IntegrationBase
     double dt;
     Eigen::Vector3d acc_0, gyr_0;
     Eigen::Vector3d acc_1, gyr_1;
-
+    double last_t;
     const Eigen::Vector3d linearized_acc, linearized_gyr;
     Eigen::Vector3d linearized_ba, linearized_bg;
 
@@ -212,8 +223,17 @@ class IntegrationBase
     Eigen::Vector3d delta_v;
 
     std::vector<double> dt_buf;
+    std::vector<double> last_t_buf;
     std::vector<Eigen::Vector3d> acc_buf;
     std::vector<Eigen::Vector3d> gyr_buf;
+
+    std::vector<double>t_buf_404;
+    std::vector<Eigen::Vector3d> delta_p_buf;
+    std::vector<Eigen::Vector3d> delta_v_buf;
+    std::vector<Eigen::Quaterniond> delta_q_buf;
+    //std::vector<Eigen::Vector3d> ps_buf_404;
+    //std::vector<Eigen::Vector3d> vs_buf_404;
+    //std::vector<Eigen::Quaterniond> rs_buf_404;
 
 };
 /*

@@ -17,10 +17,15 @@
 #include <opencv2/core/eigen.hpp>
 #include <fstream>
 #include <map>
-
+#include <tf/transform_datatypes.h>
+#include <eigen_conversions/eigen_msg.h>
+#include <random>
+#include <iomanip>
+#include <geometry_msgs/PoseArray.h>
 using namespace std;
 
 const double FOCAL_LENGTH = 460.0;
+const int LINE_MIN_OBS = 4;
 const int WINDOW_SIZE = 10;
 const int NUM_OF_F = 1000;
 //#define UNIT_SPHERE_ERROR
@@ -63,14 +68,21 @@ extern int MIN_DIST;
 extern double F_THRESHOLD;
 extern int SHOW_TRACK;
 extern int FLOW_BACK;
-
+extern int USELINE;
+extern int USEUWB;
+extern int AGENT_NUMBER;
+extern int imu_delta_fre;
+extern int IMU_SAEM_FRE;
+extern int MULAGENT;
+extern int DEPEND;
 void readParameters(std::string config_file);
 
 enum SIZE_PARAMETERIZATION
 {
     SIZE_POSE = 7,
     SIZE_SPEEDBIAS = 9,
-    SIZE_FEATURE = 1
+    SIZE_FEATURE = 1,
+    SIZE_LINE = 4
 };
 
 enum StateOrder

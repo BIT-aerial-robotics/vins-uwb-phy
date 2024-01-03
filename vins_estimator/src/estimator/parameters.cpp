@@ -45,8 +45,13 @@ int MIN_DIST;
 double F_THRESHOLD;
 int SHOW_TRACK;
 int FLOW_BACK;
-
-
+int USELINE;
+int imu_delta_fre;
+int IMU_SAEM_FRE;
+int MULAGENT;
+int DEPEND;
+int USEUWB;
+int AGENT_NUMBER;
 template <typename T>
 T readParam(ros::NodeHandle &n, std::string name)
 {
@@ -65,6 +70,7 @@ T readParam(ros::NodeHandle &n, std::string name)
 
 void readParameters(std::string config_file)
 {
+    USELINE=0;
     FILE *fh = fopen(config_file.c_str(),"r");
     if(fh == NULL){
         ROS_WARN("config_file dosen't exist; wrong config_file path");
@@ -196,5 +202,12 @@ void readParameters(std::string config_file)
         printf("no imu, fix extrinsic param; no time offset calibration\n");
     }
 
+
+    USEUWB=0;
+    imu_delta_fre=5;
+    IMU_SAEM_FRE=1;
+    MULAGENT=0;
+    DEPEND=1;
+    AGENT_NUMBER=3;
     fsSettings.release();
 }

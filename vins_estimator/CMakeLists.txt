@@ -14,7 +14,9 @@ find_package(catkin REQUIRED COMPONENTS
     tf
     cv_bridge
     camera_models
-    image_transport)
+    image_transport
+    nlink_parser
+    eigen_conversions)
 
 find_package(OpenCV REQUIRED)
 
@@ -29,15 +31,27 @@ find_package(Eigen3)
 include_directories(
   ${catkin_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIR}
+  /home/f404/catkin_tmp/src/VINS-Fusion/vins_estimator/src/featureTracker/line_descriptor/include
 )
 
 catkin_package()
 
 add_library(vins_lib
+    src/featureTracker/line_descriptor/src/binary_descriptor_custom.cpp
+    src/featureTracker/line_descriptor/src/binary_descriptor_matcher.cpp
+    src/featureTracker/line_descriptor/src/bitarray_custom.hpp
+    src/featureTracker/line_descriptor/src/bitops_custom.hpp
+    src/featureTracker/line_descriptor/src/draw_custom.cpp
+    src/featureTracker/line_descriptor/src/LSDDetector_custom.cpp
+    src/featureTracker/line_descriptor/src/precomp_custom.hpp
+    src/featureTracker/line_descriptor/src/types_custom.hpp
     src/estimator/parameters.cpp
     src/estimator/estimator.cpp
     src/estimator/feature_manager.cpp
+    src/estimator/uwb_manager.cpp
     src/factor/pose_local_parameterization.cpp
+    src/factor/line_parameterization.cpp
+    src/factor/line_projection_factor.cpp
     src/factor/projectionTwoFrameOneCamFactor.cpp
     src/factor/projectionTwoFrameTwoCamFactor.cpp
     src/factor/projectionOneFrameTwoCamFactor.cpp
@@ -49,7 +63,8 @@ add_library(vins_lib
     src/initial/initial_aligment.cpp
     src/initial/initial_sfm.cpp
     src/initial/initial_ex_rotation.cpp
-    src/featureTracker/feature_tracker.cpp)
+    src/featureTracker/feature_tracker.cpp
+    src/featureTracker/feature_tracker_line.cpp)
 target_link_libraries(vins_lib ${catkin_LIBRARIES} ${OpenCV_LIBS} ${CERES_LIBRARIES})
 
 
@@ -62,3 +77,5 @@ target_link_libraries(kitti_odom_test vins_lib)
 add_executable(kitti_gps_test src/KITTIGPSTest.cpp)
 target_link_libraries(kitti_gps_test vins_lib) 
 
+add_executable(uwb_node src/uwbNode.cpp)
+target_link_libraries(uwb_node vins_lib) 
