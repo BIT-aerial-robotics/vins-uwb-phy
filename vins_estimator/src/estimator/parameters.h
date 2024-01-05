@@ -75,6 +75,7 @@ extern int imu_delta_fre;
 extern int IMU_SAEM_FRE;
 extern int MULAGENT;
 extern int DEPEND;
+extern int SIM_UE;
 void readParameters(std::string config_file);
 
 enum SIZE_PARAMETERIZATION

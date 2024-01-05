@@ -52,6 +52,7 @@ int MULAGENT;
 int DEPEND;
 int USEUWB;
 int AGENT_NUMBER;
+int SIM_UE;
 template <typename T>
 T readParam(ros::NodeHandle &n, std::string name)
 {
@@ -203,11 +204,12 @@ void readParameters(std::string config_file)
     }
 
 
-    USEUWB=0;
+    USEUWB=1;
     imu_delta_fre=5;
     IMU_SAEM_FRE=1;
     MULAGENT=0;
     DEPEND=1;
     AGENT_NUMBER=3;
+    SIM_UE=1;
     fsSettings.release();
 }

@@ -117,11 +117,13 @@ public:
         Vs=Eigen::Vector3d(0,0,0);
         Ws=Eigen::Vector3d(0,0,0);
     }
+    void updateRange(double _range[]);
     OdometryVins interpolation(OdometryVins nx,double t);
     OdometryVins predict(double t);
     double time;
     Eigen::Vector3d Ps,Vs,Ws;
     Eigen::Quaterniond Rs;
+    double range[10];
     double getYawAndNorm()
     {
         Eigen::Matrix3d rs=Rs.toRotationMatrix();

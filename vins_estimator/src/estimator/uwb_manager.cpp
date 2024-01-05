@@ -7,13 +7,13 @@ OdometryVins OdometryVins::interpolation(OdometryVins nx,double t)
     OdometryVins tmp;
     tmp.time=t;
     double t1=time,t2=nx.time;
-    tmp.Vs=Vs+((Vs-nx.Vs)/(t2-t1))*(t-t1);
-    //ROS_INFO("%lf %lf %lf %lf %lf %lf %lf",t1,t2,t,Ps.x(),nx.Ps.x(),Vs.x(),nx.Vs.x());
-    tmp.Ps=Ps+0.75*((Ps-nx.Ps)/(t2-t1))*(t-t1)+0.25*(tmp.Vs+Vs)*0.5*(t-t1);
-
-    tmp.Ws=Ws+((Ws-nx.Ws)/(t2-t1))*(t-t1);
+    tmp.Vs=Vs+((nx.Vs-Vs)/(t2-t1))*(t-t1);
+    tmp.Ps=Ps+0.85*((nx.Ps-Ps)/(t2-t1))*(t-t1)+0.15*(tmp.Vs+Vs)*0.5*(t-t1);
+    tmp.Ws=Ws+((nx.Ws-Ws)/(t2-t1))*(t-t1);
     tmp.Rs = Rs;
     tmp.Rs=tmp.Rs.slerp((t - t1) / (t2 - t1), nx.Rs);
+    for(int i=0;i<=9;i++)
+    tmp.range[i]=range[i]+(nx.range[i]-range[i])/(t2-t1)*(t-t1);
     return tmp;
 }
 OdometryVins OdometryVins::predict(double t)
@@ -30,8 +30,10 @@ OdometryVins OdometryVins::predict(double t)
     delta.z()=tmp.Ws.z()*(t-time)*0.5;
     delta.w()=0;
     //delta.w()=sqrt(1-delta.x()*delta.x()+delta.y()*delta.y()+delta.z()*delta.z());
-    //tmp.Rs=tmp.Rs*delta;
+    tmp.Rs=tmp.Rs*delta;
     tmp.Rs.normalize();
+    for(int i=0;i<=9;i++)
+    tmp.range[i]=range[i];
     return tmp;
 }
 UWBManager::UWBManager(){
@@ -79,10 +81,11 @@ double UWBManager::accumulate(int idx)
 }
 
 bool UWBManager::query(OdometryVins &x,double time){
+    //printf("odometry  size == %d\n",odometry.size());
     if(odometry.size()==0)return false;
     auto iter=lower_bound(odometry.begin(),odometry.end(),time,comp());
-    if(abs(iter->time-time)>0.75)return false;
     if(iter==odometry.end())return false;
+    if(abs(iter->time-time)>0.1)return false;
     if(iter!=odometry.begin()){
         auto last=prev(iter);
         OdometryVins tmp=*last;
@@ -90,7 +93,7 @@ bool UWBManager::query(OdometryVins &x,double time){
         return true;
     }
     else{
-        if(abs(iter->time-time)>0.15)return false;
+        if(abs(iter->time-time)>0.1)return false;
         OdometryVins tmp=*iter;
         x=tmp.predict(time);
         return true;
@@ -118,60 +121,35 @@ bool UWBManager::addUWBMeasurements(int idx,double time,double range){
             double offset = range - accumulate(idx);
             double offset_to_last = range - uwb_range_sol_data[idx].back().range;
             //printf("offset %lf  offset_to_last %lf len=%d\n",offset,offset_to_last,uwb_range_window[idx].size());
-            if(q1){
-                double delta_t=time-uwb_range_window[idx].back().time;
-                double delta_p;
-                if(q2)delta_p=(x1.Ps-x2.Ps).norm();
-                else delta_p=x1.Vs.norm()*(time-uwb_range_window[idx].back().time);
-                if(abs(offset_to_last)>exp(1.1+delta_t)*delta_p){
-                    range_updated=false;
-                    now_offset=0;
-                    return false;
-                }
-            }
-
-            // if( abs(offset) > OFFSET_THRESH && abs(offset_to_last) > OFFSET_THRESH)
-            // {
-            //     now_offset=offset;
-            //     offset_time=ros::Time::now().toSec();
-            //     range_updated = true;
-            // }
-            // else if(abs(offset)>OFFSET_THRESH)
-            // {
-            //     uwb_range_window[idx].push_back(UWBMeasurement(idx,time,range-now_offset));
-            //     uwb_range_window[idx].pop_front();
-            //     range_updated = true;
-            // }
-            // else if(offset_to_last<-OFFSET_THRESH){
-            //     now_offset=0;
-            // }
-            // else{
-            //     uwb_range_window[idx].push_back(UWBMeasurement(idx,time,range-now_offset));
-            //     uwb_range_window[idx].pop_front();
-            //     range_updated = true;
-            //     now_offset=0;
-            // }
-            // if(ros::Time::now().toSec()-offset_time>1000){
-            //     now_offset=0;
-            //     range_updated=false;
-            // }
-            // if(time-uwb_range_window[idx].back().time>1000){
-            //     uwb_range_window.clear();
-            //     now_offset=0;
-            //     range_updated=false;
-
-            // }
-            if(abs(offset_to_last)<2*OFFSET_THRESH){
-                if((uwb_range_window[idx].size()>=4&&abs(offset)>4*OFFSET_THRESH))
-                range_updated=false;
-                else
-                range_updated=true;
-            }
-            //range_updated=true;
             if(abs(OFFSET_THRESH-0.6)<=0.01){
                 range_updated=true;
                 while(uwb_range_window[idx].size()>0)uwb_range_window[idx].pop_front();
                 OFFSET_THRESH=0.04;
+            }
+            else
+            {
+                bool speed=true;
+                q1=query(x1,uwb_range_window[idx].back().time);
+                q2=query(x2,time);
+                //std::cout<<"query "<<q1<< " and "<<q2<<std::endl;
+                if(q1){
+                    double delta_t=time-uwb_range_window[idx].back().time;
+                    double delta_p;
+                    if(q2)delta_p=(x1.Ps-x2.Ps).norm();
+                    else delta_p=x1.Vs.norm()*(time-uwb_range_window[idx].back().time);
+                    if(abs(offset_to_last)>exp(1.1+delta_t)*delta_p){
+                        speed=false;
+                    }
+                }
+                if(speed==true)
+                {
+                    if(abs(offset_to_last)<2*OFFSET_THRESH){
+                        if((uwb_range_window[idx].size()>=4&&abs(offset)>4*OFFSET_THRESH))
+                            range_updated=false;
+                        else
+                            range_updated=true;
+                    }
+                }
             }
             bool res=range_updated;
             if(range_updated){
@@ -196,7 +174,11 @@ bool UWBManager::addUWBMeasurements(int idx,double time,double range){
     
 
 }
-
+void OdometryVins::updateRange(double _range[])
+{
+    for(int i=0;i<=9;i++)
+    range[i]=_range[i];
+}
 void UWBManager::smoothRange(int idx)
 {
     //printf("smooth range %d %d %d",idx,uwb_range_sol_data[idx].size(),last_smooth_idx[idx]);

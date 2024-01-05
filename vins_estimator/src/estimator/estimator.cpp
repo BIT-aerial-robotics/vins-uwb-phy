@@ -20,17 +20,17 @@ Estimator::Estimator() : f_manager{Rs}
     para_UWB_anchor[0][2]=1.5;
 
 
-    para_UWB_anchor[1][0]=5;
+    para_UWB_anchor[1][0]=20;
     para_UWB_anchor[1][1]=0;
     para_UWB_anchor[1][2]=1.5;
 
 
     para_UWB_anchor[2][0]=0;
-    para_UWB_anchor[2][1]=5;
+    para_UWB_anchor[2][1]=10;
     para_UWB_anchor[2][2]=1.5;
 
     para_UWB_anchor[3][0]=5;
-    para_UWB_anchor[3][1]=5;
+    para_UWB_anchor[3][1]=13;
     para_UWB_anchor[3][2]=1.5;
 
     para_UWB_anchor[4][0]=5;
@@ -1275,13 +1275,13 @@ void Estimator::optimization()
 
             problem.SetParameterBlockConstant(para_UWB_anchor[uwbIdx]);
             problem.SetParameterBlockConstant(para_UWB_bias[uwbIdx]);
-            UWBBiasFactor *conxt = new UWBBiasFactor(para_UWB_bias[uwbIdx][0], 0.0025);
+            UWBBiasFactor *conxt = new UWBBiasFactor(para_UWB_bias[uwbIdx][0], 0.008);
             problem.AddResidualBlock(
                 new ceres::AutoDiffCostFunction<UWBBiasFactor, 1, 1>(conxt),
                 NULL,para_UWB_bias[uwbIdx]);
 
         }
-        if(frame_sol_cnt>=25)
+        if(frame_sol_cnt>=5)
         {
             uwb_length=0;
             uwb_2_index.clear();
@@ -1292,7 +1292,7 @@ void Estimator::optimization()
                 uwbNum=2,lowNum=1;
             }
             else if(AGENT_NUMBER==2)uwbNum=1,lowNum=1;
-            else uwbNum=2,lowNum=0;
+            else uwbNum=3,lowNum=0;
 
             int resNum=0;
             int lostNum=0;
@@ -1314,14 +1314,17 @@ void Estimator::optimization()
                                 Eigen::Vector3d sp1, sp2;
                                 Eigen::Quaterniond sr1, sr2;
                                 arrayTeigenYaw(para_uwb_local_world_Rt[nxt], sp1, sr1);
-                                UwbFactor *conxt = new UwbFactor(sp1, sr1.toRotationMatrix(), uwb_mea[uwbIdx][nxt], 0.05);
+                                UwbFactor *conxt = new UwbFactor(sp1, sr1.toRotationMatrix(), uwb_mea[uwbIdx][nxt], 0.04);
                                 problem.AddResidualBlock(
                                     new ceres::AutoDiffCostFunction<UwbFactor, 1, 7, 3,1>(conxt),
-                                    loss_function,
+                                    NULL,
                                     para_Pose[i], para_UWB_anchor[uwbIdx],para_UWB_bias[uwbIdx]);
                                 
-                                //ROS_INFO("%d %d %lf %lf %lf %lf %lf %lf %lf %lf %lf",uwbIdx,i,para_uwb_local_world_Rt[nxt][0],para_uwb_local_world_Rt[nxt][1],para_uwb_local_world_Rt[nxt][2],para_uwb_local_world_Rt[nxt][3],
-                                //para_UWB_anchor[uwbIdx][0],para_UWB_anchor[uwbIdx][1],para_UWB_anchor[uwbIdx][2],para_UWB_bias[uwbIdx][0],uwb_mea[uwbIdx][nxt]);
+
+                                Eigen::Vector3d x(para_Pose[i]);
+                                x=sr1.toRotationMatrix()*x+sp1;
+                                Eigen::Vector3d y=x-UWB_anchor[uwbIdx];
+                                //ROS_INFO("%d %d %lf %lf %lf %lf %lf error=%lf",uwbIdx,i,x.x(),x.y(),x.z(),uwb_mea[uwbIdx][nxt],y.norm(),y.norm()-uwb_mea[uwbIdx][nxt]);
                                 resNum+=1;
                             }
                         }
@@ -1358,10 +1361,10 @@ void Estimator::optimization()
                             {
                                 
                                 UWBFactor_delta *conxt = new UWBFactor_delta(eworldP, eworldR.toRotationMatrix(), 
-                                delta_p,delta_q,uwb_fre_time[nxt]-Headers[i-1],uwb_mea[uwbIdx][nxt], 0.05);
+                                delta_p,delta_q,uwb_fre_time[nxt]-Headers[i-1],uwb_mea[uwbIdx][nxt], 0.04);
                                 problem.AddResidualBlock(
                                     new ceres::AutoDiffCostFunction<UWBFactor_delta, 1, 7,9,3,1>(conxt),
-                                    loss_function,
+                                    NULL,
                                     para_Pose[i-1],para_SpeedBias[i-1],para_UWB_anchor[uwbIdx],para_UWB_bias[uwbIdx]);
                                 resNum+=1;
                             }                 
@@ -2627,7 +2630,7 @@ bool Estimator::getRange(int id,double t,double &dis)
     auto it=range_map[id].begin();
     it=range_map[id].lower_bound(t);
     if(it==range_map[id].end()){
-        if(range_map[id].rbegin()->first-t<=0.05){
+        if(range_map[id].rbegin()->first-t<=0.025){
             dis=range_map[id].rbegin()->second;
             return true;
         }
@@ -2636,7 +2639,7 @@ bool Estimator::getRange(int id,double t,double &dis)
         }
     }
     else if(it==range_map[id].begin()){
-        if(t-range_map[id].rbegin()->first<=0.05){
+        if(t-range_map[id].rbegin()->first<=0.025){
             dis=range_map[id].rbegin()->second;
             return true;
         }
@@ -2729,6 +2732,14 @@ void Estimator::getPoseAndUWB(int &tot, std::map<double, int> &mp)
                     break;
                 }
             }
+            if(to_world_rt_flag==1)
+            {
+                for(int uwbIdx=0;uwbIdx<=3;uwbIdx++)
+                {
+                    //para_UWB_bias[uwbIdx][0]=0;
+                    //para_UWB_bias[uwbIdx][0]=(uwb_mea[uwbIdx][0]/2)*0.1;
+                }
+            }
         }
         if(to_world_rt_flag==1){
             for(int i=0;i<tot;i++)
@@ -2816,7 +2827,10 @@ bool Estimator::getRTformGT(int id, double time, Eigen::Vector3d &p, Eigen::Matr
     Eigen::Affine3d affine2;
     affine2 = Eigen::Translation3d(tmp.Ps)*tmp.Rs;
     Eigen::Matrix4d matrix2 = affine2.matrix();
+
+
     Eigen::Matrix4d matrix3 = matrix2*matrix.inverse();
+
     Eigen::Affine3d affine3(matrix3);
     q = (Eigen::Quaterniond(affine3.rotation())).toRotationMatrix();
     p = affine3.translation();

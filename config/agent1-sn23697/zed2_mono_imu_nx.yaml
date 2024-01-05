@@ -3,14 +3,16 @@
 #common parameters
 #support: 1 imu 1 cam; 1 imu 2 cam: 2 cam; 
 imu: 1         
-num_of_cam: 2  
-
-#imu_topic: "/zed2/zed_node/imu/data"
-imu_topic: "/mavros/imu/data"
-image0_topic: "/zed2/zed_node/left_raw/image_raw_gray"
-image1_topic: "/zed2/zed_node/right_raw/image_raw_gray"
-output_path: "~/o/utput/"
-
+num_of_cam: 1  
+KINEMATIC: 0
+agent_number: 1
+agent_all: 3
+ground_topic: "/vrpn_client_node/ag3312/pose"
+imu_topic: "mavros/imu/data"
+image0_topic: "zed/zed_node/left_raw/image_raw_gray"
+image1_topic: "zed/zed_node/right_raw/image_raw_gray"
+output_path: "/home/f404/output/agent1"
+length: 0
 cam0_calib: "left_cal.yaml"
 cam1_calib: "right_cal.yaml"
 image_width: 672
@@ -21,29 +23,37 @@ image_height: 376
 estimate_extrinsic: 1   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
                         # 1  Have an initial guess about extrinsic parameters. We will optimize around your initial guess.
 
+body_world_T: !!opencv-matrix
+  rows: 4
+  cols: 4
+  dt: d
+  data: [0.8976602  , 0.43831661 , -0.04565865,0.00936121,
+        -0.05824061,  0.01529597, -0.99818539,0.22358,
+        -0.43682284,  0.89869048,  0.03925841,1.11008162,
+        0,0,0,1]
 body_T_cam0: !!opencv-matrix
   rows: 4
   cols: 4
   dt: d
-  data: [0.00971857, -0.03893755,  0.9991943,  0.0632255,
-         -0.99991445, -0.00912717,  0.0093699,   0.06057498,
-         0.00875498, -0.99919996, -0.03902292, -0.00368773,
+  data: [0.04075811, -0.01762583,  0.99901357,  0.06150275,
+         -0.99914391,  0.00637319,  0.04087587,  0.06146731,
+         -0.00708737, -0.99982434, -0.01735098,  0.00413582,
            0, 0, 0, 1]
 
 body_T_cam1: !!opencv-matrix
   rows: 4
   cols: 4
   dt: d
-  data: [0.00830974, -0.03876078,  0.99921397 , 0.06403853,
-        -0.99993085, -0.00863741,  0.00798065, -0.05952612,
-         0.00832129 ,-0.99921119, -0.03882988, -0.0027394 ,
+  data: [0.05328316, -0.0139007,   0.99848269,  0.0676375,
+         -0.99855351,  0.00646392,  0.05337693, -0.05821835,
+        -0.00719609, -0.99988249, -0.01353618,  0.00344856,
            0, 0, 0, 1]
 
 #Multiple thread support
 multiple_thread: 1
 
 #feature traker paprameters
-max_cnt: 150            # max feature number in feature tracking
+max_cnt: 300            # max feature number in feature tracking
 min_dist: 30            # min distance between two features 
 freq: 15                # frequence (Hz) of publish tracking result. At least 10Hz for good estimation. If set 0, the frequence will be same as raw image 
 F_threshold: 1.0        # ransac threshold (pixel)
@@ -56,11 +66,11 @@ max_num_iterations: 8   # max solver itrations, to guarantee real time
 keyframe_parallax: 10.0 # keyframe selection threshold (pixel
 
 #imu parameters       The more accurate parameters you provide, the better performance
-acc_n: 0.1          # accelerometer measurement noise standard deviation. #0.2   0.1
-gyr_n: 0.01          # gyroscope measurement noise standard deviation.     #0.05  0.03
-acc_w: 0.001        # accelerometer bias random work noise standard deviation.  #0.02
+acc_n: 0.2          # accelerometer measurement noise standard deviation. #0.2   0.1
+gyr_n: 0.05         # gyroscope measurement noise standard deviation.     #0.05  0.03
+acc_w: 0.02        # accelerometer bias random work noise standard deviation.  #0.02
 gyr_w: 4.0e-5       # gyroscope bias random work noise standard deviation.     #4.0e-5
-g_norm: 9.80655       # gravity magnitude
+g_norm: 9.805       # gravity magnitude
 
 #unsynchronization parameters
 estimate_td: 1                      # online estimate time offset between camera and imu

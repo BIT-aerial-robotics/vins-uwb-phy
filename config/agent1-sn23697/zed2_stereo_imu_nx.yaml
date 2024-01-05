@@ -1,0 +1,134 @@
+%YAML:1.0
+
+#common parameters
+#support: 1 imu 1 cam; 1 imu 2 cam: 2 cam; 
+imu: 1         
+num_of_cam: 2  
+KINEMATIC: 1
+agent_number: 1
+agent_all: 3
+ground_topic: "/vrpn_client_node/robot12/pose"
+imu_topic: "mavros/imu/data"
+image0_topic: "zed/zed_node/left_raw/image_raw_gray"
+image1_topic: "zed/zed_node/right_raw/image_raw_gray"
+output_path: "/home/f404/output/agent1"
+length: 0.841
+cam0_calib: "left_cal.yaml"
+cam1_calib: "right_cal.yaml"
+image_width: 672
+image_height: 376
+scale : 1
+posinfo: 40
+veloinfo: 5
+## 672 376
+
+# Extrinsic parameter between IMU and Camera.
+estimate_extrinsic: 1   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
+                        # 1  Have an initial guess about extrinsic parameters. We will optimize around your initial guess.
+
+# body_world_est: !!opencv-matrix
+#   rows: 1
+#   cols: 7
+#   dt: d
+#   data: [-0.050364,0.281765,-0.313020,0.026880,-0.015686, ,0.044357,0.998531]
+
+body_world_T: !!opencv-matrix
+  rows: 4
+  cols: 4
+  dt: d
+  # data : [0.802923864973,0.595717826795,0.0208215728253,0.018725310533,
+  #         -0.596080916679,0.802380286978,0.0295536096135,-0.0879182422339,
+  #         0.000898792514075,-0.0361406406712,0.999346309476,0.943131250284,
+  #         0.0,0.0,0.0,1.0]
+  #lab10
+  
+  # data: [0.823757271152,0.566938964826,0.00204166267935,0.22428833136,
+  #       -0.566929072158,0.823707299554,0.00988492803722,-0.703126638863,
+  #       0.00392241841659,-0.00930025927393,0.999949058608,0.883980909626,
+  #       0.0,0.0,0.0,1.0]
+  #lab2
+  # data :  [0.811772849449,0.583971442661,-0.0014815715384,0.0867321172829,
+  #         -0.582407126509,0.809407411911,-0.0752434750405,-0.630749179774,
+  #         -0.0427408456858,0.0619434879585,0.997164091015,2.10659786065,
+  #         0.0,0.0,0.0,1.0]
+  #lab9 
+  # data : [-0.417967891419,0.90831607914,-0.016270897898,-0.17614276854,
+  #         -0.908175092162,-0.417319022422,0.0326011579824,-0.768164070893,
+  #         0.0228220007893,0.0284030614578,0.999335990736,1.99460943652,
+  #         0.0,0.0,0.0,1.0]
+  #lab8
+  # data : [0.639371984033,0.768854710484,-0.00811789384977,-0.0855494993081,
+  #         -0.768851422028,0.639413645696,0.0042048237437,-0.613807208716,
+  #         0.00842359064395,0.00355300773075,0.999958208755,0.912367688808,
+  #         0.0,0.0,0.0,1.0]
+  #lab1
+  # data : [0.567128454549,0.823148514295,-0.0281396420476,-0.137983773483,
+  #         -0.823395194687,0.565821583351,-0.043200569227,-0.420169785731,
+  #         -0.0196384675576,0.0476703181035,0.9986700513,0.824126212264,
+  #         0.0,0.0,0.0,1.0]
+  #lab3
+  # data : [0.413185330567,0.721274409064,0.555914660208,-0.0616954933116,
+  #         -0.659928866207,0.657819702334,-0.362997425292,-0.672916076414,
+  #         -0.62751236972,-0.216878920255,0.74779125416,0.865601409465,
+  #         0.0,0.0,0.0,1.0]
+  #lab7
+  # data : [0.561937644368,0.640124265329,0.523895990421,-0.0977061913159,
+  #         -0.671953796443,0.722616185791,-0.162184905211,-0.468098071914,
+  #         -0.482394215645,-0.260896096118,0.836199167509,0.895156789501,
+  #         0.0,0.0,0.0,1.0]
+  #lab6
+  data : [0.511034813668,0.859542063982,0.00555512961877,2.99429428795,
+          -0.859464532399,0.511063701467,-0.0116021804471,2.79536460006,
+          -0.0128115872333,0.00115468124272,0.999917261549,-1.64321349385,
+          0.0,0.0,0.0,1.0]
+  #lab12
+
+body_T_cam0: !!opencv-matrix
+  rows: 4
+  cols: 4
+  dt: d
+  data: [0.04075811, -0.01762583,  0.99901357,  0.06150275,
+         -0.99914391,  0.00637319,  0.04087587,  0.06146731,
+         -0.00708737, -0.99982434, -0.01735098,  0.00413582,
+           0, 0, 0, 1]
+
+body_T_cam1: !!opencv-matrix
+  rows: 4
+  cols: 4
+  dt: d
+  data: [0.05328316, -0.0139007,   0.99848269,  0.0676375,
+         -0.99855351,  0.00646392,  0.05337693, -0.05821835,
+        -0.00719609, -0.99988249, -0.01353618,  0.00344856,
+           0, 0, 0, 1]
+
+#Multiple thread support
+multiple_thread: 1
+
+#feature traker paprameters
+max_cnt: 160            # max feature number in feature tracking
+min_dist: 30            # min distance between two features 
+freq: 15                # frequence (Hz) of publish tracking result. At least 10Hz for good estimation. If set 0, the frequence will be same as raw image 
+F_threshold: 1.0        # ransac threshold (pixel)
+show_track: 1           # publish tracking image as topic
+flow_back: 1            # perform forward and backward optical flow to improve feature tracking accuracy
+
+#optimization parameters
+max_solver_time: 0.04    # max solver itration time (ms), to guarantee real time
+max_num_iterations: 8   # max solver itrations, to guarantee real time
+keyframe_parallax: 10.0  # keyframe selection threshold (pixel
+
+#imu parameters       The more accurate parameters you provide, the better performance
+acc_n: 0.2          # accelerometer measurement noise standard deviation. #0.2   0.1
+gyr_n: 0.03         # gyroscope measurement noise standard deviation.     #0.05  0.03
+acc_w: 0.02        # accelerometer bias random work noise standard deviation.  #0.02
+gyr_w: 4.0e-5       # gyroscope bias random work noise standard deviation.     #4.0e-5
+g_norm: 9.80655       # gravity magnitude
+
+#unsynchronization parameters
+estimate_td: 1                      # online estimate time offset between camera and imu
+td: 0.0                             # initial value of time offset. unit: s. readed image clock + td = real image clock (IMU clock)
+
+#loop closure parameters
+load_previous_pose_graph: 0        # load and reuse previous pose graph; load from 'pose_graph_save_path'
+pose_graph_save_path: "~/output/pose_graph/" # save and load path
+save_image: 0                   # save image in pose graph for visualization prupose; you can close this function by setting 0 
