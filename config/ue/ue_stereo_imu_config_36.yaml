@@ -4,9 +4,9 @@
 #support: 1 imu 1 cam; 1 imu 2 cam: 2 cam; 
 imu: 1        
 num_of_cam: 2
-imu_topic: "/imu_2"
-image0_topic: "/camera4/image"
-image1_topic: "/camera3/image"
+imu_topic: "imu_2"
+image0_topic: "camera4/image"
+image1_topic: "camera3/image"
 output_path: "/home/f404/bag/"
 
 cam0_calib: "cam0_pinhole.yaml"

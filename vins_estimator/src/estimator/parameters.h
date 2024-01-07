@@ -22,6 +22,7 @@
 #include <random>
 #include <iomanip>
 #include <geometry_msgs/PoseArray.h>
+#include <boost/bind.hpp>
 using namespace std;
 
 const double FOCAL_LENGTH = 460.0;
@@ -69,13 +70,14 @@ extern double F_THRESHOLD;
 extern int SHOW_TRACK;
 extern int FLOW_BACK;
 extern int USELINE;
-extern int USEUWB;
+extern int USE_UWB;
 extern int AGENT_NUMBER;
 extern int imu_delta_fre;
 extern int IMU_SAEM_FRE;
 extern int MULAGENT;
 extern int DEPEND;
 extern int SIM_UE;
+extern int USE_KIN;
 void readParameters(std::string config_file);
 
 enum SIZE_PARAMETERIZATION

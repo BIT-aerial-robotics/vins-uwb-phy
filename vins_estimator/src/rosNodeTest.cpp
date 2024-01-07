@@ -214,7 +214,7 @@ double getNoiseRandomValue(double dis,Eigen::Vector3d eul)
     
     return noisy_value+(dis/1.8)*0.1+abs(eul.x())/180*3.14*0.1+abs(eul.y())/180*3.14*0.08+abs(eul.z())/180*3.14*0.5;
 }
-void ground_truth_callback(const nav_msgs::OdometryConstPtr &msg)
+void ground_truth_callback(const nav_msgs::OdometryConstPtr &msg,int idx)
 {
     m_buf.lock();
     Eigen::Vector3d ps,vs,ws;
@@ -224,36 +224,41 @@ void ground_truth_callback(const nav_msgs::OdometryConstPtr &msg)
     tf::vectorMsgToEigen(msg->twist.twist.angular, ws);
     tf::quaternionMsgToEigen(msg->pose.pose.orientation,rs);
     OdometryVins tmp(ps,vs,ws,rs,msg->header.stamp.toSec());
-    estimator.inputGT(AGENT_NUMBER,tmp);
-    double time=msg->header.stamp.toSec();
-    geometry_msgs::PoseArray raw,data;
-    raw.header=msg->header;
-    data.header=msg->header;
-    // //nlink_parser::LinktrackNodeframe2 frame;
-    for(int i=0;i<ANCHORNUMBER;i++){
-        double range=(ps-anchor_create_pos[i]).norm();
-        double range2=range+getNoiseRandomValue(range,Utility::R2ypr(rs.toRotationMatrix()));
-        bool res=uwb_manager[i].addUWBMeasurements(0,time,range2);
-        geometry_msgs::Pose raw_pose;
-        raw_pose.position.x=range2;
-        raw_pose.position.y=range;
-        //frame.nodes[i]=range;
-        raw.poses.push_back(raw_pose);
-        if(res){
-           double dis=uwb_manager[i].uwb_range_sol_data[0].back().range;
-           estimator.inputRange(i,time,dis);
-           geometry_msgs::Pose data_pose;
-           data_pose.position.x=dis;
-           data.poses.push_back(data_pose);
-        }
-        else{
+    estimator.inputGT(idx,tmp);
+    if(idx==AGENT_NUMBER)
+    {
+        double time=msg->header.stamp.toSec();
+        geometry_msgs::PoseArray raw,data;
+        raw.header=msg->header;
+        data.header=msg->header;
+        // //nlink_parser::LinktrackNodeframe2 frame;
+        for(int i=0;i<ANCHORNUMBER;i++){
+            double range=(ps-anchor_create_pos[i]).norm();
+            double range2=range+getNoiseRandomValue(range,Utility::R2ypr(rs.toRotationMatrix()));
+            bool res=uwb_manager[i].addUWBMeasurements(0,time,range2);
+            geometry_msgs::Pose raw_pose;
+            raw_pose.position.x=range2;
+            raw_pose.position.y=range;
+            //frame.nodes[i]=range;
+            raw.poses.push_back(raw_pose);
+            if(res){
+            double dis=uwb_manager[i].uwb_range_sol_data[0].back().range;
+            estimator.inputRange(i,time,dis);
             geometry_msgs::Pose data_pose;
-            data_pose.position.x=uwb_manager[i].uwb_range_sol_data[0].back().range;
+            data_pose.position.x=dis;
             data.poses.push_back(data_pose);
+            }
+            else{
+                geometry_msgs::Pose data_pose;
+                data_pose.position.x=uwb_manager[i].uwb_range_sol_data[0].back().range;
+                data.poses.push_back(data_pose);
+            }
         }
+        pub_range_raw.publish(raw);
+        pub_range_data.publish(data);
     }
-    pub_range_raw.publish(raw);
-    pub_range_data.publish(data);
+    
+    
     //nav_msgs::OdometryConstPtr odomPtr = boost::make_shared<const nav_msgs::Odometry>(odom);
     m_buf.unlock();
 }
@@ -378,24 +383,30 @@ void cam_switch_callback(const std_msgs::BoolConstPtr &switch_msg)
     return;
 }
 
-void self_odometry_callback(const nav_msgs::OdometryConstPtr &msg)
+void self_odometry_callback(const nav_msgs::OdometryConstPtr &msg,int idx)
 {
     m_buf.lock();
+
     Eigen::Vector3d ps,vs,ws;
     Eigen::Quaterniond rs;
     tf::pointMsgToEigen(msg->pose.pose.position,ps);
     tf::vectorMsgToEigen(msg->twist.twist.linear,vs);
     tf::vectorMsgToEigen(msg->twist.twist.angular,ws);
     tf::quaternionMsgToEigen(msg->pose.pose.orientation,rs);
-    for(int i=0;i<ANCHORNUMBER;i++){
-        uwb_manager[i].addOdometryMeasurements(ps,vs,ws,rs,msg->header.stamp.toSec());
+    if(idx==AGENT_NUMBER)
+    {
+        for(int i=0;i<ANCHORNUMBER;i++){
+            uwb_manager[i].addOdometryMeasurements(ps,vs,ws,rs,msg->header.stamp.toSec());
+        }
     }
+    OdometryVins tmp(ps,vs,ws,rs,msg->header.stamp.toSec());
+    estimator.inputOtherPose(idx,tmp);
     m_buf.unlock();
 }
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "vins_estimator");
-    ros::NodeHandle n("~");
+    ros::NodeHandle n;
     ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Info);
 
     if(argc != 2)
@@ -431,23 +442,17 @@ int main(int argc, char **argv)
     {
         sub_img1 = n.subscribe(IMAGE1_TOPIC, 100, img1_callback);
     }
-    ros::Subscriber sub_restart = n.subscribe("/vins_restart", 100, restart_callback);
-    ros::Subscriber sub_imu_switch = n.subscribe("/vins_imu_switch", 100, imu_switch_callback);
-    ros::Subscriber sub_cam_switch = n.subscribe("/vins_cam_switch", 100, cam_switch_callback);
+    ros::Subscriber sub_restart = n.subscribe("vins_restart", 100, restart_callback);
+    ros::Subscriber sub_imu_switch = n.subscribe("vins_imu_switch", 100, imu_switch_callback);
+    ros::Subscriber sub_cam_switch = n.subscribe("vins_cam_switch", 100, cam_switch_callback);
     ros::Subscriber sub_uwb_range = n.subscribe("/nlink_linktrack_nodeframe2", 2000, uwb_callback);
-    pub_range_raw=n.advertise<geometry_msgs::PoseArray>("ag"+std::to_string(AGENT_NUMBER)+"/range_raw", 1000);
-    pub_range_data=n.advertise<geometry_msgs::PoseArray>("ag"+std::to_string(AGENT_NUMBER)+"/range_sol", 1000);
-    ros::Subscriber sub_gt;
+    pub_range_raw=n.advertise<geometry_msgs::PoseArray>("range_raw", 1000);
+    pub_range_data=n.advertise<geometry_msgs::PoseArray>("range_sol", 1000);
+    ros::Subscriber sub_gt[4];
     if(SIM_UE==1){
-        if(AGENT_NUMBER==3){
-            sub_gt=n.subscribe("/pose_2", 2000, ground_truth_callback);
-        }
-        else if(AGENT_NUMBER==2){
-            sub_gt=n.subscribe("/pose_3", 2000, ground_truth_callback);
-        }
-        else if(AGENT_NUMBER==1){
-            sub_gt=n.subscribe("/pose_1", 2000, ground_truth_callback);
-        }
+        sub_gt[3]=n.subscribe("/pose_2", 2000, boost::bind(ground_truth_callback, _1, 3));
+        sub_gt[2]=n.subscribe("/pose_3", 2000, boost::bind(ground_truth_callback, _1, 2));
+        sub_gt[1]=n.subscribe("/pose_1", 2000, boost::bind(ground_truth_callback, _1, 1));
     }
     else{
         //sub_gt=n.subscribe("/vrpn_client_node/robot"+std::to_string(AGENT_NUMBER)+"2/pose", 2000, ground_truth_callback2);
@@ -455,7 +460,11 @@ int main(int argc, char **argv)
     for(int i=0;i<=4;i++){
         uwb_manager[i]=UWBManager(1,vector<Eigen::Vector3d>(1,anchor_create_pos[i]));
     }
-    ros::Subscriber sub_self_odometry=n.subscribe("/vins_estimator/imu_propagate", 200, self_odometry_callback);
+    ros::Subscriber sub_self_odometry[4];
+    for(int i=0;i<=3;i++){
+        sub_self_odometry[i]=n.subscribe("ag"+std::to_string(AGENT_NUMBER)+"/imu_propagate", 500, boost::bind(self_odometry_callback, _1, i));
+    }
+    
     std::thread sync_thread{sync_process};
     ros::spin();
 

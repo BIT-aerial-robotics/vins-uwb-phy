@@ -15,14 +15,19 @@
     <node pkg="rosbag" type="play" name="playergt" output="log" args="$(arg gt)" /> -->
     <node name="rvizvisualisation" pkg="rviz" type="rviz" output="log" args="-d /home/f404/catkin_tmp/src/VINS-Fusion/config/vins_rviz_config.rviz" />
     <arg name="sequence_1" default = "/home/f404/datacol/ue/slam_complete-2023120801.bag" />
+    <group ns="ag3">
+        <node name="vins_estimator" pkg="vins" type="vins_node" output="screen" args="/home/f404/catkin_tmp/src/VINS-Fusion/config/ue/ue_stereo_imu_config_36.yaml"/>
+    </group>
     
-    <node name="vins_estimator" pkg="vins" type="vins_node" output="screen" args="/home/f404/catkin_tmp/src/VINS-Fusion/config/ue/ue_stereo_imu_config_36.yaml"/>
 
     <node pkg="rosbag" type="play" name="player" output="log" 
     args="$(arg sequence_1) -s 10 --duration=60
+    /camera3/image:=/ag3/camera3/image
+    /camera4/image:=/ag3/camera4/image
+    /imu_2:=/ag3/imu_2
     " />
     <!-- <node name="rvizvisualisation" pkg="rviz" type="rviz" output="log" args="-d /home/f404/catkin_ws/src/VINS-Fusion/config/multi_agent_rviz.rviz" /> -->
-    <node pkg="rosbag" type="record" name="bag_record" output="log" args="/vins_estimator/odometry  /vins_estimator/imu_propagate /vins_estimator/odometry_world  /vins_estimator/ag3/range_raw /vins_estimator/ag3/range_sol /pose_2 -o /home/f404/output/uwb/" />
+    <node pkg="rosbag" type="record" name="bag_record" output="log" args="/ag3/odometry  /ag3/imu_propagate /ag3/odometry_world  /ag3/range_raw /ag3/range_sol /pose_2 -o /home/f404/output/uwb/" />
 </launch>
 
 <!-- /imuOne_1:=/vins_1/mavros/imu/data /cam1:=/vins_1/cam1 

@@ -97,6 +97,7 @@ class Estimator
     void inputGT(int id,OdometryVins tmp);
     bool getRTformGT(int i,double time,Eigen::Vector3d &p,Eigen::Matrix3d &q,Eigen::Vector3d sp,Eigen::Matrix3d sq);
     bool getRTformMap(int i,double time,Eigen::Vector3d &p,Eigen::Matrix3d &q);
+    void inputOtherPose(int id,OdometryVins tmp);
     void save_rt();
     void clearMap();
     //bool queryOdometry(map<double,OdometryVins>mp,double time,OdometryVins &query);
@@ -202,17 +203,22 @@ class Estimator
     std::map<double,double>range_map[5];
     std::map<double,OdometryVins>gt_map[5];
     std::map<double,OdometryVins>other_RT_map[5];
+    std::map<double,OdometryVins>other_pose_map[5];
     int uwb_length=0;
+    int kin_length=0;
+    double kin_fre_time[WINDOW_SIZE*30];
     double uwb_fre_time[WINDOW_SIZE*30];
     std::map<double, int> uwb_2_index;
+    std::map<double, int> kin_2_index;
     int    uwb_can[5][(WINDOW_SIZE + 1)*30];
+    int    kin_can[5][(WINDOW_SIZE + 1)*30];
     double uwb_mea[5][(WINDOW_SIZE + 1)*30];
+    
     double para_UWB_anchor[5][3];
     double para_UWB_bias[5][1];
     Eigen::Vector3d UWB_anchor[5];
     double para_uwb_local_world_Rt[(WINDOW_SIZE + 1)*30][SIZE_POSE];
-
-
+    double para_kin_local_world_Rt[(WINDOW_SIZE + 1)*30][SIZE_POSE];
     int to_world_rt_flag;
 
     

@@ -1263,7 +1263,7 @@ void Estimator::optimization()
     }
 
 
-    if(USEUWB){
+    if(USE_UWB){
         for(int uwbIdx=0;uwbIdx<=3;uwbIdx++){
             problem.AddParameterBlock(para_UWB_anchor[uwbIdx],3);
             problem.AddParameterBlock(para_UWB_bias[uwbIdx],1);
@@ -1373,6 +1373,13 @@ void Estimator::optimization()
                 }
             }
             cout<<"uwb_length:"<<uwb_length<<"  "<<uwb_2_index.size()<<"  " << resNum <<endl;
+        }
+    }
+    if(USE_KIN)
+    {
+        if(frame_sol_cnt>=5)
+        {
+            
         }
     }
     ROS_DEBUG("visual measurement count: %d", f_m_cnt);
@@ -2618,9 +2625,9 @@ void Estimator::double2vector2()
 
 void Estimator::inputRange(int id,double t,double dis)
 {
-    //mBuf.lock();
+    mBuf.lock();
     range_map[id][t]=dis;
-    //mBuf.unlock();
+    mBuf.unlock();
 }
 bool Estimator::getRange(int id,double t,double &dis)
 {
@@ -2804,7 +2811,9 @@ void Estimator::arrayTeigenYaw(double val[],Eigen::Vector3d &x,Eigen::Matrix3d &
 
 void Estimator::inputGT(int id,OdometryVins tmp)
 {
+    mBuf.lock();
     gt_map[id][tmp.time]=tmp;
+    mBuf.unlock();
 }
 
 
@@ -2865,6 +2874,7 @@ void Estimator::save_rt()
 }
 void Estimator::clearMap()
 {
+    mBuf.lock();
     for(int i=0;i<3;i++)
     {
         while(other_RT_map[i].size()>100&&other_RT_map[i].begin()->first-Headers[0]<-10)
@@ -2884,5 +2894,12 @@ void Estimator::clearMap()
             range_map[i].erase(range_map[i].begin());
         }
     }
-    
+    mBuf.unlock();
+}
+
+void Estimator::inputOtherPose(int id,OdometryVins tmp)
+{
+    mBuf.lock();
+    other_pose_map[id][tmp.time]=tmp;
+    mBuf.unlock();
 }
