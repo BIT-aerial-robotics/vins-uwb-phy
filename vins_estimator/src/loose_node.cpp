@@ -16,6 +16,11 @@ const int IMU_PROPAGATE=1;
 std::mutex m_buf;
 std::map<double,OdometryVins>pose_agent_buf[5];
 double para_pos[5][200][3],para_yaw[5][200][1];
+
+double para_HINGE[1] = {-0.09};
+double para_LENGTH[1] = {0.841};
+double pre_calc_hinge[1] = {para_HINGE[0]};
+double pre_calc_length[1] = {para_LENGTH[0]};
 void agent_pose_callback(const nav_msgs::Odometry::ConstPtr &pose_msg,int id)
 {
     m_buf.lock();
@@ -41,6 +46,88 @@ void center_pose_callback(const sensor_msgs::ImuConstPtr &imu_msg)
     double time=imu_msg->header.stamp.toSec();
     pose_agent_buf[0][time]=OdometryVins(ps,vs,ws,qs,time);
     m_buf.unlock();
+}
+
+void pub(int tot)
+{
+
+    for (int i = 0; i < tot; i++)
+    {
+        std_msgs::Header head = data[1].lower_bound(para_agent_time[i])->second.H;
+        // std::cout<<head.stamp<<" ";
+        for (int j = 1; j <= 3; j++)
+        {
+            Eigen::Quaterniond lr(Utility::ypr2R(Eigen::Vector3d(para_yaw[j][i][0], 0, 0)));
+            lr.normalize();
+            Eigen::Vector3d pos(para_Rt[j][i][0], para_Rt[j][i][1], para_Rt[j][i][2]);
+            RT[j][para_agent_time[i]] = RTType2(pos, lr, para_yaw[j][i][0]);
+
+            // nav_msgs::Odometry odometry;
+            // odometry.header = head;
+            // odometry.header.frame_id = "world";
+            // odometry.child_frame_id = "world";
+            // tf::pointEigenToMsg(pos, odometry.pose.pose.position);
+            // tf::quaternionEigenToMsg(lr, odometry.pose.pose.orientation);
+            // pub_odometry_frame[j].publish(odometry);
+        }
+    }
+
+    // std::cout<<"publish rt_world finish"<<endl;
+    for (int i = tot - 1; i >= 0; i--)
+    {
+        std_msgs::Header head = data[1].lower_bound(para_agent_time[i])->second.H;
+        if (isPub[para_agent_time[i]] == 0)
+        {
+            for (int j = 1; j <= 3; j++)
+            {
+                Eigen::Quaterniond lr(Utility::ypr2R(Eigen::Vector3d(para_yaw[j][i][0], 0, 0)));
+                lr.normalize();
+                Eigen::Vector3d pos(para_Rt[j][i][0], para_Rt[j][i][1], para_Rt[j][i][2]);
+                Eigen::Vector3d a_pos(para_local_pose[j][i][0], para_local_pose[j][i][1], para_local_pose[j][i][2]);
+                Eigen::Quaterniond a_r(para_local_pose[j][i][6], para_local_pose[j][i][3], para_local_pose[j][i][4], para_local_pose[j][i][5]);
+
+
+                if(a_pos.norm()>100 || pos.norm() >100){
+                    ROS_DEBUG("ttttttttttttttttttttttttttt %lf  %lf",a_pos.norm(),pos.norm());
+                }
+                a_r = lr * a_r;
+                a_r.normalize();
+
+                a_pos = lr * a_pos + pos;
+
+                nav_msgs::Odometry odometry2;
+                odometry2.header = head;
+                odometry2.header.frame_id = "world";
+                odometry2.child_frame_id = "world";
+                tf::pointEigenToMsg(pos, odometry2.pose.pose.position);
+                tf::quaternionEigenToMsg(lr, odometry2.pose.pose.orientation);
+                pub_odometry_frame[j].publish(odometry2);
+
+
+
+                nav_msgs::Odometry odometry;
+                odometry.header = head;
+                odometry.header.frame_id = "world";
+                odometry.child_frame_id = "world";
+                tf::pointEigenToMsg(a_pos, odometry.pose.pose.position);
+                tf::quaternionEigenToMsg(a_r, odometry.pose.pose.orientation);
+
+                pub_odometry_value[j].publish(odometry);
+                geometry_msgs::PoseStamped pose_stamped;
+                pose_stamped.header = head;
+                pose_stamped.header.frame_id = "world";
+
+                tf::pointEigenToMsg(a_pos, pose_stamped.pose.position);
+                tf::quaternionEigenToMsg(a_r, pose_stamped.pose.orientation);
+
+                path_o[j].header = head;
+                path_o[j].header.frame_id = "world";
+                path_o[j].poses.push_back(pose_stamped);
+                pub_path[j].publish(path_o[j]);
+            }
+            isPub[para_agent_time[i]] = 1;
+        }
+    }
 }
 void sync_process()
 {
@@ -105,13 +192,76 @@ void sync_process()
         ceres::Problem problem;
         ceres::LossFunction *loss_function;
         loss_function = new ceres::HuberLoss(1.0);
-        for(int i=0;i<opt_frame_len;i++){
-            kinFactor_bet_4dof_2 *bxt = new kinFactor_bet_4dof_2(para_Rt[i][k + 1], para_yaw[i][k+1], para_Rt[i][k], para_yaw[i][k], para_agent_time[k] - para_agent_time[k + 1], sigma_rt_6dof_loose);
-                    problem.AddResidualBlock(
-                        new ceres::AutoDiffCostFunction<kinFactor_bet_4dof_2, 4, 3, 1,3, 1>(bxt),
-                        NULL,
-                        para_Rt[i][k + 1], para_yaw[i][k+1], para_Rt[i][k], para_yaw[i][k]);
+        for(int i=1;i<=3;i++){
+
+            for(int k=1;k<opt_frame_len;k++){
+                kinFactor_bet_4dof_2 *bxt = new kinFactor_bet_4dof_2(para_Rt[i][k], para_yaw[i][k], para_Rt[i][k-1], para_yaw[i][k-1], para_agent_time[k+1] - para_agent_time[k], sigma_rt_6dof_loose);
+                problem.AddResidualBlock(
+                    new ceres::AutoDiffCostFunction<kinFactor_bet_4dof_2, 4, 3, 1,3, 1>(bxt),
+                    NULL,
+                    para_Rt[i][k], para_yaw[i][k], para_Rt[i][k-1], para_yaw[i][k-1]);
+            }
         }
+        for(int i=1;i<=3;i++){
+
+            for(int k=0;k<opt_frame_len;k++){
+                kinFactor_bet_old_4dof_2 *bxt = new kinFactor_bet_old_4dof_2(para_Rt[i][k], para_yaw[i][k], sigma_vins_6dof_loose);
+                problem.AddResidualBlock(
+                    new ceres::AutoDiffCostFunction<kinFactor_bet_old_4dof_2, 4, 3, 1>(bxt),
+                    NULL,
+                    para_Rt[i][k], para_yaw[i][k]);
+            }
+        }
+
+        for (int i = 1; i <= 3; i++)
+        {
+            for (int j = i + 1; j <= 3; j++)
+            {
+                for (int k = 0; k < opt_frame_len; k++)
+                {
+                    // int Two = 1;
+                    // if (LINER == 1 && i != 2 && abs(i - j) != 1)
+                    // {
+                    //     Two = 2;
+                    // }
+                    kinFactor_connect_4dof *self_factor = new kinFactor_connect_4dof(para_local_pose[i][k], para_local_pose[j][k], pre_calc_hinge[0], sigma_length_loose);
+                    problem.AddResidualBlock(
+                        new ceres::AutoDiffCostFunction<kinFactor_connect_4dof, 1, 3, 3, 1, 1, 1>(self_factor),
+                        NULL,
+                        para_Rt[i][k], para_Rt[j][k], para_yaw[i][k], para_yaw[j][k], pre_calc_length);
+                }
+            }
+        }
+
+        for (int k = 0; k < opt_frame_len; k++)
+        {
+            kinFactor_connect_hyp_4dof *hypxt = new kinFactor_connect_hyp_4dof(para_local_pose[3][k], para_local_pose[1][k], para_local_pose[2][k], pre_calc_hinge[0], para_agent_centQ[k][0], sigma_hyp_loose);
+            problem.AddResidualBlock(
+                new ceres::AutoDiffCostFunction<kinFactor_connect_hyp_4dof, 1, 3, 3, 3, 1, 1, 1>(hypxt),
+                NULL,
+                para_Rt[3][k], para_Rt[1][k], para_Rt[2][k], para_yaw[3][k], para_yaw[1][k], para_yaw[2][k]);
+        }
+        if (1)
+        {
+            problem.SetParameterBlockConstant(para_Rt[1][0]);
+            problem.SetParameterBlockConstant(para_Rt[2][0]);
+            problem.SetParameterBlockConstant(para_Rt[3][0]);
+            problem.SetParameterBlockConstant(para_yaw[1][0]);
+            problem.SetParameterBlockConstant(para_yaw[2][0]);
+            problem.SetParameterBlockConstant(para_yaw[3][0]);
+            problem.AddParameterBlock(pre_calc_hinge, 1);
+            problem.AddParameterBlock(pre_calc_length, 1);
+            problem.SetParameterBlockConstant(pre_calc_hinge);
+            problem.SetParameterBlockConstant(pre_calc_length);
+        }
+        ceres::Solver::Options options;
+        options.linear_solver_type = ceres::DENSE_SCHUR;
+        options.trust_region_strategy_type = ceres::DOGLEG;
+        options.max_solver_time_in_seconds = 0.2;
+        options.max_num_iterations = 12;
+        ceres::Solver::Summary summary;
+        ceres::Solve(options, &problem, &summary);
+        m_buf.unlock();
     }
 }
 int main()
