@@ -39,6 +39,7 @@
 #include "../factor/projectionOneFrameTwoCamFactor.h"
 #include "../featureTracker/feature_tracker.h"
 #include "../featureTracker/feature_tracker_line.h"
+#include "../factor/kin_factor.h"
 #include "uwb_manager.h"
 class Estimator
 {
