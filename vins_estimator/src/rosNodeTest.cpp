@@ -450,9 +450,9 @@ int main(int argc, char **argv)
     pub_range_data=n.advertise<geometry_msgs::PoseArray>("range_sol", 1000);
     ros::Subscriber sub_gt[4];
     if(SIM_UE==1){
-        // sub_gt[3]=n.subscribe("/pose_2", 2000, boost::bind(ground_truth_callback, _1, 3));
-        // sub_gt[2]=n.subscribe("/pose_3", 2000, boost::bind(ground_truth_callback, _1, 2));
-        // sub_gt[1]=n.subscribe("/pose_1", 2000, boost::bind(ground_truth_callback, _1, 1));
+        sub_gt[3]=n.subscribe<nav_msgs::Odometry>("/pose_2", 2000, boost::bind(ground_truth_callback, _1, 3));
+        sub_gt[2]=n.subscribe<nav_msgs::Odometry>("/pose_3", 2000, boost::bind(ground_truth_callback, _1, 2));
+        sub_gt[1]=n.subscribe<nav_msgs::Odometry>("/pose_1", 2000, boost::bind(ground_truth_callback, _1, 1));
     }
     else{
         //sub_gt=n.subscribe("/vrpn_client_node/robot"+std::to_string(AGENT_NUMBER)+"2/pose", 2000, ground_truth_callback2);
@@ -461,9 +461,9 @@ int main(int argc, char **argv)
         uwb_manager[i]=UWBManager(1,vector<Eigen::Vector3d>(1,anchor_create_pos[i]));
     }
     ros::Subscriber sub_self_odometry[4];
-    // for(int i=0;i<=3;i++){
-    //     sub_self_odometry[i]=n.subscribe("ag"+std::to_string(AGENT_NUMBER)+"/imu_propagate", 500, boost::bind(self_odometry_callback, _1, i));
-    // }
+    for(int i=0;i<=3;i++){
+        //sub_self_odometry[i]=n.subscribe<>("ag"+std::to_string(AGENT_NUMBER)+"/imu_propagate", 500, boost::bind(self_odometry_callback, _1, i));
+    }
     
     std::thread sync_thread{sync_process};
     ros::spin();

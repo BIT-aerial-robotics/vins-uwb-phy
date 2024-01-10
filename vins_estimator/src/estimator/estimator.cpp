@@ -1289,9 +1289,9 @@ void Estimator::optimization()
             getPoseAndUWB(uwb_length,uwb_2_index);
             int uwbNum=0,lowNum=0;
             if(AGENT_NUMBER==1){
-                uwbNum=2,lowNum=1;
+                uwbNum=3,lowNum=0;
             }
-            else if(AGENT_NUMBER==2)uwbNum=1,lowNum=1;
+            else if(AGENT_NUMBER==2)uwbNum=3,lowNum=0;
             else uwbNum=3,lowNum=0;
 
             int resNum=0;

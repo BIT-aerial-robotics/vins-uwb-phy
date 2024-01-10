@@ -211,6 +211,7 @@ void readParameters(std::string config_file)
     MULAGENT=0;
     DEPEND=1;
     AGENT_NUMBER=3;
+    AGENT_NUMBER=fsSettings["agent_number"];
     SIM_UE=1;
     fsSettings.release();
 }

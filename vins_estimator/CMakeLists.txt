@@ -80,5 +80,5 @@ target_link_libraries(kitti_gps_test vins_lib)
 add_executable(uwb_node src/uwbNode.cpp)
 target_link_libraries(uwb_node vins_lib) 
 
-add_executable(loose_noed src/loose_node.cpp)
-target_link_libraries(loose_noed vins_lib) 
+add_executable(loose_node src/loose_node.cpp)
+target_link_libraries(loose_node vins_lib) 
