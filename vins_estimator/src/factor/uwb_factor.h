@@ -26,6 +26,25 @@ struct UWBBiasFactor
     double old_bias;
     double info;
 };
+struct UWBAnchorFactor
+{
+    UWBAnchorFactor(double _pos[],double _info)
+    {
+        for(int i=0;i<=2;i++)pos[i]=_pos[i];
+        info=_info;
+    }
+    template <typename T>
+    bool operator()(const T* b,T* residuals) const
+    {
+        for(int i=0;i<=2;i++){
+          T res=b[i]-(T)pos[i];
+          residuals[i]=res/(T)info;
+        }
+        return true;
+    }
+    double pos[3];
+    double info;
+};
 struct UwbFactor
 {
   UwbFactor(Eigen::Vector3d _wp_1, Eigen::Matrix3d _wr_1,double _distance,double _info)
@@ -121,3 +140,62 @@ struct UWBFactor_delta
   double info,dt;
 };
 
+
+struct UWBFactor_connect_4dof
+{
+  UWBFactor_connect_4dof(Eigen::Vector3d pi,Eigen::Quaterniond qi,double para_hinge,double _dis,double _info)
+  {
+    di=pi;
+    ri=qi;
+    di+=ri.toRotationMatrix()*(Eigen::Vector3d(0,0,para_hinge));
+    info=_info;
+    dis=_dis;
+  }
+  template <typename T>
+  bool operator()(const T*  pi,const T* yi,const T* pj,const T*bias,T* residuals) const
+  {
+    Eigen::Matrix<T, 3, 1> Pi,Vi,Di,Pj;
+    for(int i=0;i<3;i++)
+    {
+        Pi(i)=pi[i];
+        Di(i)=(T)di(i);
+        Pj(i)=pj[i];
+    }
+    Eigen::Matrix<T, 3, 3>Yawi=fromYawToMat(yi[0]);
+    T len=(T)dis-bias[0];
+    Pi=Yawi*Di+Pi;
+    Eigen::Matrix<T,3,1>bet=Pi-Pj;
+    T est_len=bet.norm();
+    residuals[0]=(est_len-len)/(T(info));
+    return true;
+  }
+  Eigen::Quaterniond ri,rj;
+  Eigen::Vector3d di,dj,vi,vj;
+  double deltaTime;
+  double info,dis;
+};
+struct UWBFactor_anchor_and_anchor
+{
+  UWBFactor_anchor_and_anchor(double _dis,double _info)
+  {
+    info=_info;
+    dis=_dis;
+  }
+  template <typename T>
+  bool operator()(const T*  pi,const T* pj,T* residuals) const
+  {
+    Eigen::Matrix<T, 3, 1> Pi,Pj;
+    for(int i=0;i<3;i++)
+    {
+        Pi(i)=pi[i];
+        Pj(i)=pj[i];
+    }
+    T len=(T)dis;
+    Eigen::Matrix<T,3,1>bet=Pi-Pj;
+    T est_len=bet.norm();
+    residuals[0]=(est_len-len)/(T(info));
+    return true;
+  }
+  double deltaTime;
+  double info,dis;
+};

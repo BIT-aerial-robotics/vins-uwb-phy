@@ -14,7 +14,19 @@
 #include <cstring>
 #include <eigen3/Eigen/Dense>
 typedef Eigen::Matrix<double,6,1> Vector6d;
-
+template <typename T>
+Eigen::Matrix<T,3,3> fromYawToMat(T yaw)
+{
+    Eigen::Matrix<T,3,3> mat;
+    for(int i=0;i<3;i++)for(int j=0;j<3;j++)mat(i,j)=(T)0;
+    yaw = yaw / T(180.0) * T(M_PI);
+    mat(0,0)=cos(yaw);
+    mat(0,1)=-sin(yaw);
+    mat(1,0)=sin(yaw);
+    mat(1,1)=cos(yaw);
+    mat(2,2)=(T)(1);
+    return mat;
+}
 class Utility
 {
   public:
@@ -249,5 +261,19 @@ class Utility
         double expVal = -1 * (pow(x, 2) / pow(2 * sigma, 2));
         double divider = sqrt(2 * M_PI * pow(sigma, 2));
         return (1 / divider) * exp(expVal);
+    }
+
+    template <typename T>
+    static Eigen::Matrix<T,3,3> fromYawToMat(T yaw)
+    {
+        Eigen::Matrix<T,3,3> mat;
+        for(int i=0;i<3;i++)for(int j=0;j<3;j++)mat(i,j)=(T)0;
+        yaw = yaw / T(180.0) * T(M_PI);
+        mat(0,0)=cos(yaw);
+        mat(0,1)=-sin(yaw);
+        mat(1,0)=sin(yaw);
+        mat(1,1)=cos(yaw);
+        mat(2,2)=(T)(1);
+        return mat;
     }
 };

@@ -65,3 +65,4 @@ void pubRelocalization(const Estimator &estimator);
 
 void pubCar(const Estimator & estimator, const std_msgs::Header &header);
 void pubTrackImageLine(const cv::Mat &imgTrack, const double t);
+void pubLatestOdometry(const Eigen::Vector3d &P, const Eigen::Quaterniond &Q, const Eigen::Vector3d &V, double t,double range[]);

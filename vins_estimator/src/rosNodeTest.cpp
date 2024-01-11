@@ -212,7 +212,7 @@ double getNoiseRandomValue(double dis,Eigen::Vector3d eul)
         }
     }
     
-    return noisy_value+(dis/1.8)*0.1+abs(eul.x())/180*3.14*0.1+abs(eul.y())/180*3.14*0.08+abs(eul.z())/180*3.14*0.5;
+    return noisy_value;//+(dis/1.8)*0.1+abs(eul.x())/180*3.14*0.1+abs(eul.y())/180*3.14*0.08+abs(eul.z())/180*3.14*0.5;
 }
 void ground_truth_callback(const nav_msgs::OdometryConstPtr &msg,int idx)
 {

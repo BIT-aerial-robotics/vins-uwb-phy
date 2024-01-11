@@ -258,7 +258,11 @@ void Estimator::inputIMU(double t, const Vector3d &linearAcceleration, const Vec
     {
         mPropagate.lock();
         fastPredictIMU(t, linearAcceleration, angularVelocity);
-        pubLatestOdometry(latest_P, latest_Q, latest_V, t);
+        double range[10];
+        for(int i=0;i<=3;i++){
+            getRange(i,t,range[i]);
+        }
+        pubLatestOdometry(latest_P, latest_Q, latest_V, t,range);
         mPropagate.unlock();
     }
 }

@@ -6,19 +6,7 @@
 #include "../utility/utility.h"
 #include "../utility/tic_toc.h"
 #include "../estimator/parameters.h"
-template <typename T>
-Eigen::Matrix<T,3,3> fromYawToMat(T yaw)
-{
-    Eigen::Matrix<T,3,3> mat;
-    for(int i=0;i<3;i++)for(int j=0;j<3;j++)mat(i,j)=(T)0;
-    yaw = yaw / T(180.0) * T(M_PI);
-    mat(0,0)=cos(yaw);
-    mat(0,1)=-sin(yaw);
-    mat(1,0)=sin(yaw);
-    mat(1,1)=cos(yaw);
-    mat(2,2)=(T)(1);
-    return mat;
-}
+
 template <typename T>
 Eigen::Matrix<T,3,3> skewSymmetricTemplate(Eigen::Matrix<T,3,1> w)
 {
@@ -285,6 +273,9 @@ struct kinFactor_connect_4dof_2
   double deltaTime;
   double info;
 };
+
+
+
 struct kinFactor_connect_hyp_4dof_2
 {
   kinFactor_connect_hyp_4dof_2(Eigen::Vector3d pi,Eigen::Quaterniond qi,Eigen::Vector3d pj,Eigen::Quaterniond qj,
