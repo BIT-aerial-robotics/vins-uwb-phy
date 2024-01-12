@@ -1,7 +1,8 @@
 <launch>
     
-    <arg name="sequence_1" default = "/home/f404/output/uwb/_2024-01-10-20-21-11.bag" />
+    <!-- <arg name="sequence_1" default = "/home/f404/output/uwb/_2024-01-10-20-21-11.bag" /> -->
     <!-- <arg name="sequence_1" default = "/home/f404/output/uwb/_2024-01-10-11-04-36.bag" /> -->
+    <arg name="sequence_1" default = "/home/f404/output/uwb/1_2.bag" />
     <node name="vins_estimator" pkg="vins" type="loose_node" output="screen"/>
 
     <node pkg="rosbag" type="play" name="player" output="log" 

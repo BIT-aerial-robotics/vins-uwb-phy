@@ -174,6 +174,34 @@ struct UWBFactor_connect_4dof
   double deltaTime;
   double info,dis;
 };
+struct UWBFactor_connect_pos
+{
+  UWBFactor_connect_pos(Eigen::Vector3d pi,double _dis,double _info)
+  {
+    di=pi;
+    info=_info;
+    dis=_dis;
+  }
+  template <typename T>
+  bool operator()(const T* pi,const T*bias,T* residuals) const
+  {
+    Eigen::Matrix<T, 3, 1> Pi,Di;
+    for(int i=0;i<3;i++)
+    {
+        Pi(i)=pi[i];
+        Di(i)=(T)di(i);
+    }
+    T len=(T)dis-bias[0];
+    Eigen::Matrix<T,3,1>bet=Pi-Di;
+    T est_len=bet.norm();
+    residuals[0]=(est_len-len)/(T(info));
+    return true;
+  }
+  Eigen::Quaterniond ri,rj;
+  Eigen::Vector3d di,dj,vi,vj;
+  double deltaTime;
+  double info,dis;
+};
 struct UWBFactor_anchor_and_anchor
 {
   UWBFactor_anchor_and_anchor(double _dis,double _info)

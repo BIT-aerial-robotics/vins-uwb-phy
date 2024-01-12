@@ -21,7 +21,7 @@ std::mutex m_buf;
 
 // 设置随机数生成器
 std::default_random_engine generator;
-std::normal_distribution<double> noise_normal_distribution(0.0, 0.3);
+std::normal_distribution<double> noise_normal_distribution(0.0, 0.1);
 std::uniform_real_distribution<double> noise_uniform_distribution(-0.1, 0.1);  // 均匀分布
 ros::Publisher pub_range_raw;
 ros::Publisher pub_range_data;

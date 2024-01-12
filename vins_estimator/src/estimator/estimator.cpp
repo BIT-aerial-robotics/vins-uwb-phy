@@ -1319,10 +1319,10 @@ void Estimator::optimization()
                                 Eigen::Quaterniond sr1, sr2;
                                 arrayTeigenYaw(para_uwb_local_world_Rt[nxt], sp1, sr1);
                                 UwbFactor *conxt = new UwbFactor(sp1, sr1.toRotationMatrix(), uwb_mea[uwbIdx][nxt], 0.04);
-                                problem.AddResidualBlock(
-                                    new ceres::AutoDiffCostFunction<UwbFactor, 1, 7, 3,1>(conxt),
-                                    NULL,
-                                    para_Pose[i], para_UWB_anchor[uwbIdx],para_UWB_bias[uwbIdx]);
+                                // problem.AddResidualBlock(
+                                //     new ceres::AutoDiffCostFunction<UwbFactor, 1, 7, 3,1>(conxt),
+                                //     NULL,
+                                //     para_Pose[i], para_UWB_anchor[uwbIdx],para_UWB_bias[uwbIdx]);
                                 
 
                                 Eigen::Vector3d x(para_Pose[i]);
@@ -1366,10 +1366,10 @@ void Estimator::optimization()
                                 
                                 UWBFactor_delta *conxt = new UWBFactor_delta(eworldP, eworldR.toRotationMatrix(), 
                                 delta_p,delta_q,uwb_fre_time[nxt]-Headers[i-1],uwb_mea[uwbIdx][nxt], 0.04);
-                                problem.AddResidualBlock(
-                                    new ceres::AutoDiffCostFunction<UWBFactor_delta, 1, 7,9,3,1>(conxt),
-                                    NULL,
-                                    para_Pose[i-1],para_SpeedBias[i-1],para_UWB_anchor[uwbIdx],para_UWB_bias[uwbIdx]);
+                                // problem.AddResidualBlock(
+                                //     new ceres::AutoDiffCostFunction<UWBFactor_delta, 1, 7,9,3,1>(conxt),
+                                //     NULL,
+                                //     para_Pose[i-1],para_SpeedBias[i-1],para_UWB_anchor[uwbIdx],para_UWB_bias[uwbIdx]);
                                 resNum+=1;
                             }                 
                         }    

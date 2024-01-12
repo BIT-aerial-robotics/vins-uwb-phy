@@ -12,7 +12,7 @@
 #include "factor/marginalization_factor.h"
 
 const int USE_SIM = 1;
-const int SOL_LENGTH = 150;
+const int SOL_LENGTH = 100;
 const int IMU_PROPAGATE = 1;
 const int USE_UWB_INIT = 1;
 std::mutex m_buf;
@@ -29,6 +29,7 @@ double sigma_length_loose = 0.05;
 Eigen::Matrix<double, 4, 1> sigma_vins_6dof_loose;
 Eigen::Matrix<double, 4, 1> sigma_bet_6dof_loose;
 MarginalizationInfo *last_marginalization_info;
+vector<double *> last_marginalization_parameter_blocks;
 // int rev_cnt[5];
 void agent_pose_callback(const nav_msgs::Odometry::ConstPtr &pose_msg, const int &idx)
 {
@@ -66,19 +67,48 @@ Eigen::Quaterniond qs[5][200];
 double alpha[200], para_agent_time[200];
 double range_mea[5][200][10];
 double para_anchor[5][3];
+double para_anchor_est[5][3];
 double para_bias[5][5][1];
 ros::Publisher pub_odometry_frame[4];
 ros::Publisher pub_odometry_value[4];
-Eigen::Vector3d anchor_create_pos[5]={
-    Eigen::Vector3d(0,0,1.5),
-    Eigen::Vector3d(20,0,1.5),
-    Eigen::Vector3d(0,10,1.5),
-    Eigen::Vector3d(5,13,1.5)
-};
+Eigen::Vector3d anchor_create_pos[5] = {
+    Eigen::Vector3d(0, 0, 1.5),
+    Eigen::Vector3d(20, 0, 1.5),
+    Eigen::Vector3d(0, 10, 1.5),
+    Eigen::Vector3d(5, 13, 1.5)};
 std::default_random_engine generator;
 std::normal_distribution<double> noise_normal_distribution(0.0, 0.1);
-void pub(int tot)
+
+ceres::Problem problem2;
+double para_bias_est[5][5][2000][1];
+double range_mea_est[5][2000][10];
+Eigen::Vector3d tag_pos[5][2000];
+int long_window_len;
+void pub(int tot, int cnt)
 {
+
+    if (isPub.size() == 0)
+    {
+        for (int i = 0; i <= 3; i++)
+        {
+            for (int j = 0; j < i; j++)
+            {
+                double dis = (anchor_create_pos[i] - anchor_create_pos[j]).norm() + noise_normal_distribution(generator);
+                // printf("dis=== %lf ",dis);
+                UWBFactor_anchor_and_anchor *self_factor = new UWBFactor_anchor_and_anchor(dis, 0.2);
+                problem2.AddResidualBlock(
+                    new ceres::AutoDiffCostFunction<UWBFactor_anchor_and_anchor, 1, 3, 3>(self_factor),
+                    NULL, para_anchor_est[i], para_anchor_est[j]);
+            }
+        }
+        // for(int i=1;i<=3;i++){
+        //     for(int j=0;j<=3;j++){
+        //         problem2.AddParameterBlock(para_bias_est[i][j][0],1);
+        //         problem2.SetParameterBlockConstant(para_bias_est[i][j][0])
+        //     }
+        // }
+        
+    }
     for (int i = 0; i < tot; i++)
     {
 
@@ -108,10 +138,95 @@ void pub(int tot)
                 tf::quaternionEigenToMsg(lr, odometry.pose.pose.orientation);
 
                 pub_odometry_frame[j].publish(odometry);
+
+                if (i % 2 == 0 && cnt>=20 &&cnt<=150)
+                {
+                    tag_pos[j][long_window_len] = a_pos;
+                    for (int k = 0; k <= 3; k++)
+                    {
+                        range_mea_est[j][long_window_len][k] = range_mea[j][i][k];
+                        //para_bias_est[j][long_window_len][k][0] = long_window_len == 0 ? range_mea_est[j][long_window_len] / 1.8 * 0.1 : para_bias_est[j][long_window_len - 1][k][0];
+                        para_bias_est[j][k][long_window_len][0]=0;
+                        UWBFactor_connect_pos *self_factor = new UWBFactor_connect_pos(
+                            tag_pos[j][long_window_len], range_mea_est[j][long_window_len][k], 0.05);
+                        problem2.AddResidualBlock(
+                            new ceres::AutoDiffCostFunction<UWBFactor_connect_pos, 1, 3, 1>(self_factor),
+                            NULL,
+                            para_anchor_est[k], para_bias_est[j][k][long_window_len]);
+                        if (long_window_len >= 1)
+                        {
+                            UWBBiasFactor *bias_factor = new UWBBiasFactor(
+                                para_bias_est[j][k][long_window_len-1][0], 0.005);
+                            problem2.AddResidualBlock(
+                                new ceres::AutoDiffCostFunction<UWBBiasFactor, 1, 1>(bias_factor),
+                                NULL,
+                                para_bias_est[j][k][long_window_len]);
+                            problem2.AddParameterBlock(para_bias_est[j][k][long_window_len],1);
+                            problem2.SetParameterBlockConstant(para_bias_est[j][k][long_window_len]);
+                        }
+                        else{
+                            problem2.AddParameterBlock(para_bias_est[j][k][long_window_len],1);
+                            problem2.SetParameterBlockConstant(para_bias_est[j][k][long_window_len]);
+                        }
+                    }
+                }
             }
+            if(i%2==0&& cnt>=20 &&cnt<=150)
+            long_window_len += 1;
         }
         isPub[para_agent_time[i]] = 1;
     }
+    if (cnt <= 150 && cnt >= 20)
+    {
+        printf("build finish  long_window_size %d\n",long_window_len);
+        ceres::Solver::Options options;
+        options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
+        // options.minimizer_progress_to_stdout = true;
+        options.max_solver_time_in_seconds = 3;
+        options.max_num_iterations = 100;
+        ceres::Solver::Summary summary;
+
+        ceres::Solve(options, &problem2, &summary);
+        std::cout << " anchor solve" << summary.BriefReport() << std::endl;
+    }
+    for (int i = 0; i <= 3; i++)
+    {
+        for (int j = 0; j < i; j++)
+        {
+            double dis = (Eigen::Vector3d(para_anchor_est[i]) - Eigen::Vector3d(para_anchor_est[j])).norm();
+            double dis2 = (anchor_create_pos[i] - anchor_create_pos[j]).norm();
+            printf(" dis = (%d %d %lf %lf)", i, j, dis,dis2);
+        }
+    }
+    printf("\n");
+    for(int i=0;i<=3;i++){
+        for (int j = 0; j < i; j++)
+        {
+            for(int k=0;k<j;k++){
+                Eigen::Vector3d d_i_j = (Eigen::Vector3d(para_anchor_est[i]) - Eigen::Vector3d(para_anchor_est[j]));
+                Eigen::Vector3d d_i_k = (Eigen::Vector3d(para_anchor_est[i]) - Eigen::Vector3d(para_anchor_est[k]));
+                double alpha=d_i_j.dot(d_i_k)/(d_i_j.norm()*d_i_k.norm());
+                alpha=acos(alpha)/3.1415*180;
+
+                d_i_j = (anchor_create_pos[i] - anchor_create_pos[j]);
+                d_i_k = (anchor_create_pos[i] - anchor_create_pos[k]);
+
+                double beta=d_i_j.dot(d_i_k)/(d_i_j.norm()*d_i_k.norm());
+                beta=acos(beta)/3.1415*180;
+                printf(" alpha = (%d %d %lf %lf)", i, j, alpha,beta);
+            }
+        }
+    }
+    printf("\n");
+    for(int i=0;i<=3;i++){
+            printf("xyz (");
+            for(int k=0;k<=2;k++)
+            printf("%lf ",para_anchor_est[i][k]);
+            // printf(") bias (");
+            // for(int k=1;k<=3;k++)
+            // printf("%lf ",para_bias[k][i][0]);
+            // printf(")");
+        }
 }
 void sync_process()
 {
@@ -136,9 +251,9 @@ void sync_process()
             pose_agent_buf[1].erase(pose_agent_buf[1].begin());
         }
         int last_opt_frame_len = opt_frame_len;
-        //for (int i = 0; i <= 3; i++)
-        //    std::cout << pose_agent_buf[i].size() << " ";
-        //std::cout << opt_frame_len << " " << faile_num << std::endl;
+        // for (int i = 0; i <= 3; i++)
+        //     std::cout << pose_agent_buf[i].size() << " ";
+        // std::cout << opt_frame_len << " " << faile_num << std::endl;
         while (pose_agent_buf[1].size() > 0 && opt_frame_len < SOL_LENGTH)
         {
             // if (faile_num >= 400)
@@ -177,12 +292,16 @@ void sync_process()
                     para_pos[3][opt_frame_len][1] = -0.828;
                     para_pos[3][opt_frame_len][2] = 0;
                     para_yaw[3][opt_frame_len][0] = -120;
-                    
 
-                    para_anchor[0][0]=6.5,para_anchor[0][1]=-0.6,para_anchor[0][2]=4.5;
-                    para_anchor[1][0]=26.5,para_anchor[1][1]=-0.6,para_anchor[1][2]=4.5;
-                    para_anchor[2][0]=6.5,para_anchor[2][1]=10,para_anchor[2][2]=4.5;
-                    para_anchor[3][0]=11.5,para_anchor[3][1]=13,para_anchor[3][2]=4.5;
+                    para_anchor[0][0] = 6.5, para_anchor[0][1] = -0.6, para_anchor[0][2] = 4.5;
+                    para_anchor[1][0] = 26.5, para_anchor[1][1] = -0.6, para_anchor[1][2] = 4.5;
+                    para_anchor[2][0] = 6.5, para_anchor[2][1] = 10, para_anchor[2][2] = 4.5;
+                    para_anchor[3][0] = 11.5, para_anchor[3][1] = 13, para_anchor[3][2] = 4.5;
+
+                    para_anchor_est[0][0] = 6.5, para_anchor_est[0][1] = -0.6, para_anchor_est[0][2] = 4.5;
+                    para_anchor_est[1][0] = 20.5, para_anchor_est[1][1] = 10, para_anchor_est[1][2] = 4.5;
+                    para_anchor_est[2][0] = 10.5, para_anchor_est[2][1] = 11, para_anchor_est[2][2] = 4.5;
+                    para_anchor_est[3][0] = 9.5, para_anchor_est[3][1] = 10, para_anchor_est[3][2] = 4.5;
                 }
                 else
                 {
@@ -205,11 +324,14 @@ void sync_process()
                     }
                 }
 
-                if(opt_frame_len==0){
-                    for(int i=1;i<=3;i++){
-                        for(int j=0;j<=3;j++){
-                            para_bias[i][j][0]=0;
-                            //range_mea[i][opt_frame_len][j]/1.8*0.1;
+                if (opt_frame_len == 0)
+                {
+                    for (int i = 1; i <= 3; i++)
+                    {
+                        for (int j = 0; j <= 3; j++)
+                        {
+                            para_bias[i][j][0] = 0;
+                            // range_mea[i][opt_frame_len][j]/1.8*0.1;
                         }
                     }
                 }
@@ -230,8 +352,8 @@ void sync_process()
         }
         faile_num = 0;
         sys_cnt += 1;
-        //std::cout << sys_cnt << " " << opt_frame_len;
-        //printf("%lf %lf\n", para_agent_time[0], para_agent_time[opt_frame_len - 1]);
+        // std::cout << sys_cnt << " " << opt_frame_len;
+        // printf("%lf %lf\n", para_agent_time[0], para_agent_time[opt_frame_len - 1]);
         ceres::Problem problem;
         ceres::LossFunction *loss_function;
         loss_function = new ceres::HuberLoss(1.0);
@@ -306,110 +428,88 @@ void sync_process()
             problem.SetParameterBlockConstant(pre_calc_hinge);
             problem.SetParameterBlockConstant(pre_calc_length);
         }
+        if (USE_UWB_INIT && sys_cnt >150)
+        {
+
+            // if (last_marginalization_info && last_marginalization_info->valid)
+            // {
+            //     // construct new marginlization_factor
+            //     MarginalizationFactor *marginalization_factor = new MarginalizationFactor(last_marginalization_info);
+            //     problem2.AddResidualBlock(marginalization_factor, NULL,
+            //                               last_marginalization_parameter_blocks);
+            // }
+            for (int i = 1; i <= 3; i++)
+            {
+                for (int j = 0; j < opt_frame_len; j++)
+                {
+                    problem.AddParameterBlock(para_pos[i][j], 3);
+                    problem.AddParameterBlock(para_yaw[i][j], 1);
+                    //problem2.SetParameterBlockConstant(para_pos[i][j]);
+                    //problem2.SetParameterBlockConstant(para_yaw[i][j]);
+                    for (int k = 0; k <= 3; k++)
+                    {
+                        UWBFactor_connect_4dof *self_factor = new UWBFactor_connect_4dof(ps[i][j], qs[i][j], pre_calc_hinge[0], range_mea[i][j][k], 0.08);
+                        problem.AddResidualBlock(
+                            new ceres::AutoDiffCostFunction<UWBFactor_connect_4dof, 1, 3, 1, 3, 1>(self_factor),
+                            loss_function,
+                            para_pos[i][j], para_yaw[i][j], para_anchor[k], para_bias[i][k]);
+                    }
+                }
+            }
+            for (int i = 1; i <= 3; i++)
+            {
+                for (int k = 0; k <= 3; k++)
+                {
+                    problem.AddParameterBlock(para_bias[i][k],1);
+                    problem.SetParameterBlockConstant(para_bias[i][k]);
+                    // UWBBiasFactor *self_factor = new UWBBiasFactor(para_bias[i][k][0], 0.001);
+                    // problem.AddResidualBlock(
+                    //     new ceres::AutoDiffCostFunction<UWBBiasFactor, 1, 1>(self_factor),
+                    //     NULL, para_bias[i][k]);
+                }
+            }
+
+            for (int k = 0; k <= 3; k++)
+            {
+                problem.AddParameterBlock(para_anchor[k],3);
+                problem.SetParameterBlockConstant(para_anchor[k]);
+                // UWBAnchorFactor *self_factor = new UWBAnchorFactor(para_anchor[k], 1.0 / (log(sys_cnt - 20 + 1) * 0.5 + 1));
+                // problem2.AddResidualBlock(
+                //     new ceres::AutoDiffCostFunction<UWBAnchorFactor, 3, 3>(self_factor),
+                //     NULL, para_anchor[k]);
+            }
+            // options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
+            // // options.minimizer_progress_to_stdout = true;
+            // options.max_solver_time_in_seconds = 1;
+            // options.max_num_iterations = 10;
+            // ceres::Solve(options, &problem, &summary);
+            // std::cout << " anchor solve" << summary.BriefReport() << std::endl;
+        }
         ceres::Solver::Options options;
         options.linear_solver_type = ceres::DENSE_SCHUR;
         options.trust_region_strategy_type = ceres::DOGLEG;
         options.max_solver_time_in_seconds = 0.1;
         options.max_num_iterations = 8;
+        if(USE_UWB_INIT&&sys_cnt>50){
+            options.max_solver_time_in_seconds = 0.5;
+            options.max_num_iterations = 20;
+        }
         ceres::Solver::Summary summary;
         ceres::Solve(options, &problem, &summary);
-        //std::cout << summary.BriefReport() << std::endl;
-        pub(opt_frame_len);
-
-        if (USE_UWB_INIT && sys_cnt <= 100 &&sys_cnt>=20)
-        {
-            ceres::Problem problem2;
-            for (int i = 1; i <= 3; i++)
-            {
-                for (int j = 0; j < opt_frame_len; j++)
-                {
-                    problem2.AddParameterBlock(para_pos[i][j], 3);
-                    problem2.AddParameterBlock(para_yaw[i][j], 1);
-                    problem2.SetParameterBlockConstant(para_pos[i][j]);
-                    problem2.SetParameterBlockConstant(para_yaw[i][j]);
-                    for (int k = 0; k <= 3; k++)
-                    {
-                        UWBFactor_connect_4dof *self_factor = new UWBFactor_connect_4dof(ps[i][j], qs[i][j], pre_calc_hinge[0], range_mea[i][j][k], 0.05);
-                        problem2.AddResidualBlock(
-                            new ceres::AutoDiffCostFunction<UWBFactor_connect_4dof, 1, 3, 1, 3, 1>(self_factor),
-                            NULL,
-                            para_pos[i][k], para_yaw[i][k], para_anchor[k], para_bias[i][k]);
-                    }
-                }
-            }
-            for(int i=1;i<=3;i++)
-            {
-                for (int k = 0; k <= 3; k++)
-                {
-                    problem2.SetParameterBlockConstant(para_bias[i][k]);
-                    UWBBiasFactor *self_factor = new UWBBiasFactor(para_bias[i][k][0], 0.001);
-                    problem2.AddResidualBlock(
-                        new ceres::AutoDiffCostFunction<UWBBiasFactor, 1, 1>(self_factor),
-                        NULL, para_bias[i][k]);
-                    
-                }
-            }
-            
-            for (int k = 0; k <= 3; k++)
-            {
-                UWBAnchorFactor *self_factor = new UWBAnchorFactor(para_anchor[k], 1.0/(log(sys_cnt-20+1)*0.5+1));
-                problem2.AddResidualBlock(
-                    new ceres::AutoDiffCostFunction<UWBAnchorFactor, 3, 3>(self_factor),
-                    NULL, para_anchor[k]);
-            }
-            
-            for(int i=0;i<=3;i++){
-                for(int j=0;j<i;j++){
-                    double dis=(anchor_create_pos[i]-anchor_create_pos[j]).norm()+noise_normal_distribution(generator);
-                    //printf("dis=== %lf ",dis);
-                    UWBFactor_anchor_and_anchor *self_factor = new UWBFactor_anchor_and_anchor(dis,0.05);
-                    problem2.AddResidualBlock(
-                        new ceres::AutoDiffCostFunction<UWBFactor_anchor_and_anchor, 1,3,3>(self_factor),
-                        NULL, para_anchor[i],para_anchor[j]);
-                }
-            }
-            options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
-            //options.minimizer_progress_to_stdout = true;
-            options.max_solver_time_in_seconds = 3;
-            options.max_num_iterations = 100;
-            ceres::Solve(options, &problem2, &summary);
-            std::cout<<" anchor solve" << summary.BriefReport() << std::endl;
-
-            MarginalizationInfo *marginalization_info = new MarginalizationInfo();
-            if (last_marginalization_info && last_marginalization_info->valid)
-            {
-                vector<int> drop_set;
-                for (int i = 0; i < static_cast<int>(last_marginalization_parameter_blocks.size()); i++)
-                {
-                    for(int j=1;j<=3;j++)
-                    if (last_marginalization_parameter_blocks[i] == para_pos[j][0] ||
-                        last_marginalization_parameter_blocks[i] == para_yaw[j][0])
-                        drop_set.push_back(i);
-                }
-                // construct new marginlization_factor
-                MarginalizationFactor *marginalization_factor = new MarginalizationFactor(last_marginalization_info);
-                ResidualBlockInfo *residual_block_info = new ResidualBlockInfo(marginalization_factor, NULL,
-                                                                            last_marginalization_parameter_blocks,
-                                                                            drop_set);
-                marginalization_info->addResidualBlockInfo(residual_block_info);
-            }
-        }
-        // for(int i=0;i<=3;i++){
-        //     printf("xyz (");
-        //     for(int k=0;k<=2;k++)
-        //     printf("%lf ",para_anchor[i][k]);
-        //     printf(") bias (");
-        //     for(int k=1;k<=3;k++)
-        //     printf("%lf ",para_bias[k][i][0]);
-        //     printf(")");
-        // }
+        std::cout << summary.BriefReport() << std::endl;
+        pub(opt_frame_len, sys_cnt);
         for(int i=0;i<=3;i++){
-            for(int j=0;j<i;j++){
-                double dis=(Eigen::Vector3d(para_anchor[i])-Eigen::Vector3d(para_anchor[j])).norm();
-                printf(" dis = (%d %d %lf)",i,j,dis);
+            for(int j=0;j<=2;j++){
+                para_anchor[i][j]=para_anchor_est[i][j];
             }
         }
-        printf("\n");
+        for(int i=1;i<=3;i++){
+            for(int j=0;j<=3;j++)
+            {
+                para_bias[i][j][0]=para_bias_est[i][j][long_window_len-1][0];
+            }
+        }
+        
         for (int i = 0; i < opt_frame_len - not_memory; i++)
         {
             for (int j = 1; j <= 3; j++)
