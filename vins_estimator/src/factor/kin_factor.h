@@ -273,9 +273,115 @@ struct kinFactor_connect_4dof_2
   double deltaTime;
   double info;
 };
+struct kinFactor_connect_4dof_tight
+{
+  kinFactor_connect_4dof_tight(Eigen::Vector3d _wp_1, Eigen::Matrix3d _wr_1,Eigen::Vector3d _wp_2,Eigen::Matrix3d _wr_2,double _info)
+  {
+    wp[0]=_wp_1;
+    wr[0]=_wr_1;
+    wp[1]=_wp_2;
+    wr[1]=_wr_2;
+    info=_info;
+  }
+  template <typename T>
+  bool operator()(const T*  pi,const T* pj,const T* hinge,const T* length,T* residuals) const
+  {
+    
+    Eigen::Matrix<T, 3, 1> Pi[2],WP[2],OT,dis;
+    for(int i=0;i<3;i++)
+    {
+        Pi[0](i)=pi[i];
+        Pi[1](i)=pj[i];
+        WP[0](i)=(T)wp[0](i);
+        WP[1](i)=(T)wp[1](i);
+    }
+    Eigen::Matrix<T, 3, 3>Yawi=fromYawToMat(pj[3]);
+    Eigen::Quaternion<T> Qi[2]{Eigen::Quaternion<T>{pi[6],pi[3],pi[4],pi[5]}};
+    Eigen::Matrix<T,3,3> WR[2];
+    for(int i=0;i<=2;i++)for(int j=0;j<=2;j++)WR[0](i,j)=(T)wr[0](i,j),WR[1](i,j)=(T)wr[1](i,j);
 
+    Pi[1]=Yawi*WP[1]+Pi[1];
 
-
+    Pi[0]+=Qi[0].toRotationMatrix()*Eigen::Matrix<T, 3, 1>(hinge);
+    Pi[0]=WR[0]*Pi[0]+WP[0];
+    dis=Pi[1]-Pi[0];
+    
+    T est_len=dis.norm();
+    T len=length[0];
+    residuals[0]=(est_len-len)/(T(info));
+    return true;
+  }
+  Eigen::Vector3d wp[2];
+  Eigen::Matrix3d wr[2];
+  Eigen::Vector3d ot;
+  double pixi;
+  double pixj;
+  int Two;
+  double deltaTime;
+  double info;
+};
+struct kinFactor_connect_hyp_4dof_tight
+{
+  kinFactor_connect_hyp_4dof_tight(Eigen::Vector3d _wp1,Eigen::Matrix3d _wr1,Eigen::Vector3d _wp2,
+  Eigen::Matrix3d _wr2,Eigen::Vector3d _wp3,Eigen::Matrix3d _wr3,double _z_val,double _info)
+  {
+    wp[0]=_wp1;
+    wr[0]=_wr1;
+    wp[1]=_wp2;
+    wr[1]=_wr2;
+    wp[2]=_wp3;
+    wr[2]=_wr3;
+    info=_info;
+    z_val=_z_val;
+  }
+  template <typename T>
+  bool operator()(const T*  pi,const T*  pj,const T*  pk,const T* hinge,T* residuals) const
+  {
+    
+    Eigen::Matrix<T, 3, 1> Pi[3],WP[3],OT,dis,OT2;
+    Eigen::Matrix<T, 4, 1> DT[3];
+    for(int i=0;i<3;i++)
+    {
+        Pi[0](i)=pi[i];
+        Pi[1](i)=pj[i];
+        Pi[2](i)=pk[i];
+        for(int k=0;k<=2;k++)WP[k](i)=(T)wp[k](i);
+    }
+    for(int i=0;i<=3;i++){
+      DT[0](i)=pi[i+3];
+    }
+    Eigen::Quaternion<T> Qi[3];
+    for(int i=0;i<=0;i++)Qi[i]=Eigen::Quaternion<T>{DT[i](3),DT[i](0),DT[i](1),DT[i](2)};
+    Qi[1]=Eigen::Quaternion<T>{fromYawToMat(pj[3])};
+    Qi[2]=Eigen::Quaternion<T>{fromYawToMat(pk[3])};
+    Eigen::Matrix<T,3,3> WR[3];
+    for(int k=0;k<=2;k++){
+      for(int i=0;i<=2;i++){
+        for(int j=0;j<=2;j++){
+          WR[k](i,j)=(T)wr[k](i,j);
+        }
+      }
+      
+    }
+    Pi[0]+=Qi[0].toRotationMatrix()*Eigen::Matrix<T, 3, 1>(hinge);
+    Pi[0]=WR[0]*Pi[0]+WP[0];
+    
+    Pi[1]=WP[1];
+    Pi[2]=WP[2];
+    //cout<<Pi[1](0)<<"  "<<Pi[1](1)<<" "<<Pi[1](2)<<Pi[2](0)<<"  "<<Pi[2](1)<<" "<<Pi[2](2) <<endl;
+    Eigen::Matrix<T,3,1>Line1=Pi[0]-Pi[1];
+    Eigen::Matrix<T,3,1>Line2=Pi[0]-Pi[2];
+    Eigen::Matrix<T,3,1>N=Line1.cross(Line2);
+    N=N/(N.norm()+0.000001);
+    residuals[0]=(N(2)-(T)z_val)/info;
+    return true;
+  }
+  Eigen::Vector3d wp[3];
+  Eigen::Matrix3d wr[3];
+  int Two;
+  double info;
+  double z_val;
+};
 struct kinFactor_connect_hyp_4dof_2
 {
   kinFactor_connect_hyp_4dof_2(Eigen::Vector3d pi,Eigen::Quaterniond qi,Eigen::Vector3d pj,Eigen::Quaterniond qj,
@@ -397,3 +503,5 @@ struct kinFactor_connect_hyp_4dof
   double info;
   double z_val;
 };
+
+

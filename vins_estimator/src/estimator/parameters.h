@@ -78,6 +78,10 @@ extern int MULAGENT;
 extern int DEPEND;
 extern int SIM_UE;
 extern int USE_KIN;
+extern int uwbNum,lowNum;
+extern int FLIGHT_MODE;
+extern Eigen::Vector3d HINGE;
+extern double KIN_LENGTH;
 void readParameters(std::string config_file);
 
 enum SIZE_PARAMETERIZATION

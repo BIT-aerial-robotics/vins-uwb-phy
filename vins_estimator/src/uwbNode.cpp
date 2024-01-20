@@ -10,6 +10,10 @@
 #include "utility/visualization.h"
 #include "estimator/uwb_manager.h"
 #include "nlink_parser/LinktrackNodeframe2.h"
+#include <boost/math/distributions/normal.hpp>
+#include <boost/math/distributions.hpp>
+boost::math::normal_distribution<double> normal_dist;
+double w, p_value;
 std::mutex m_buf;
 ros::Publisher  pub_feature;
 OnlineStatistics stats;
@@ -21,6 +25,7 @@ UWBManager uwb_manager[5]={
     UWBManager(1,vector<Eigen::Vector3d>(1,Eigen::Vector3d(1,1,1)))
 };
 int first_uwb=0;
+vector<double>range_filter;
 void feature_callback(const nlink_parser::LinktrackNodeframe2ConstPtr &msg)
 {
     uint32_t num_nodes = msg->nodes.size();
@@ -43,12 +48,18 @@ void feature_callback(const nlink_parser::LinktrackNodeframe2ConstPtr &msg)
         {
             time=1703644124.77+(msg->system_time-first_uwb)*1.00/1000.00;
         }
-        uwb_manager[id].addUWBMeasurements(0,time,node.dis);
-        double dis=uwb_manager[id].uwb_range_sol_data[0].back().range;
-        tmp.nodes[i].dis=dis;
-        pub_feature.publish(tmp);
-        
-        std::cout << "Mean: " << stats.mean() << ", Variance: " << stats.variance() << std::endl;
+        bool flag = uwb_manager[id].addUWBMeasurements(0,time,node.dis);
+        if(flag)
+        {
+            double dis=uwb_manager[id].uwb_range_sol_data[0].back().range;
+            range_filter.push_back(dis);
+            tmp.nodes[i].dis=dis;
+            pub_feature.publish(tmp);
+        }
+        // if(range_filter.size()%10==1&&range_filter.size()>100){
+        //     shapiro_wilk_test(range_filter.begin(), range_filter.end(), &w, &p_value);
+        // }
+        std::cout << "Mean: " << stats.mean() << ", Variance: " << stats.variance() <<" "<<p_value << std::endl;
         // 在这里使用 node 进行操作 
         // 例如：node.role, node.id, node.local_time, 等等
     }printf("\n");

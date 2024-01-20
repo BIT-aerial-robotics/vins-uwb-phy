@@ -54,6 +54,10 @@ int USE_UWB;
 int AGENT_NUMBER;
 int SIM_UE;
 int USE_KIN;
+int uwbNum=0,lowNum=0;
+int FLIGHT_MODE;
+Eigen::Vector3d HINGE;
+double KIN_LENGTH;
 template <typename T>
 T readParam(ros::NodeHandle &n, std::string name)
 {
@@ -72,7 +76,7 @@ T readParam(ros::NodeHandle &n, std::string name)
 
 void readParameters(std::string config_file)
 {
-    USELINE=0;
+    
     FILE *fh = fopen(config_file.c_str(),"r");
     if(fh == NULL){
         ROS_WARN("config_file dosen't exist; wrong config_file path");
@@ -203,15 +207,24 @@ void readParameters(std::string config_file)
         ESTIMATE_TD = 0;
         printf("no imu, fix extrinsic param; no time offset calibration\n");
     }
-
-
+    USE_KIN=1;
+    USELINE=0;
     USE_UWB=1;
-    imu_delta_fre=5;
+    imu_delta_fre=3;
     IMU_SAEM_FRE=1;
     MULAGENT=0;
     DEPEND=1;
     AGENT_NUMBER=3;
     AGENT_NUMBER=fsSettings["agent_number"];
-    SIM_UE=1;
+    SIM_UE=0;
+    if(AGENT_NUMBER==1){
+        uwbNum=3,lowNum=0;
+    }
+    else if(AGENT_NUMBER==2)uwbNum=3,lowNum=0;
+    else uwbNum=3,lowNum=0;
+
+
+    HINGE<<-0.1,0.00,-0.03;
+    KIN_LENGTH=0.841;
     fsSettings.release();
 }

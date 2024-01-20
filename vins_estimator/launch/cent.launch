@@ -1,0 +1,24 @@
+<launch>
+
+    
+    
+    <arg name="sequence_1" default = "/home/f404/output/uwb/real_2024-01-20-13-20-37.bag" />
+    <node name="cent_estimator" pkg="vins" type="cent_node" output="screen"/>
+    <node pkg="rosbag" type="play" name="player" output="log" 
+    args="$(arg sequence_1) -r 2.5" />
+    <!-- <node name="rvizvisualisation" pkg="rviz" type="rviz" output="log" args="-d /home/f404/catkin_ws/src/VINS-Fusion/config/multi_agent_rviz.rviz" /> -->
+    <node pkg="rosbag" type="record" name="bag_record" output="log" args="
+    /mavros/imu/data
+    /vrpn_client_node/ag0/pose
+    /vrpn_client_node/ag0/twist
+    /ag0/imu_propagate
+    -o /home/f404/output/uwb/_cent" />
+
+    <node name="rvizvisualisation" pkg="rviz" type="rviz" output="log" 
+    args="-d /home/f404/catkin_tmp/src/VINS-Fusion/config/multi_agent_rviz.rviz" />
+</launch>
+
+<!-- /imuOne_1:=/vins_1/mavros/imu/data /cam1:=/vins_1/cam1 
+    /imuOne_2:=/vins_2/mavros/imu/data /cam2:=/vins_2/cam2 
+    /imuOne_3:=/vins_3/mavros/imu/data /cam3:=/vins_3/cam3
+    /imuOne_0:=/mavros/imu/data -s 37 -->

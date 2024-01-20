@@ -82,3 +82,7 @@ target_link_libraries(uwb_node vins_lib)
 
 add_executable(loose_node src/loose_node.cpp)
 target_link_libraries(loose_node vins_lib) 
+
+
+add_executable(cent_node src/centNode.cpp)
+target_link_libraries(cent_node vins_lib) 

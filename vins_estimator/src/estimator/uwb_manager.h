@@ -132,7 +132,7 @@ public:
         Rs=Eigen::Quaterniond{rs};
         return yaw;
     }
-    static bool queryOdometryMap(map<double,OdometryVins>mp,double time,OdometryVins &query,double the)
+    static bool queryOdometryMap(map<double,OdometryVins>&mp,double time,OdometryVins &query,double the)
     {
         if(mp.size()==0)return false;
         auto iter=mp.lower_bound(time);

@@ -1,0 +1,110 @@
+#include <stdio.h>
+#include <queue>
+#include <map>
+#include <thread>
+#include <mutex>
+#include <ros/ros.h>
+#include <cv_bridge/cv_bridge.h>
+#include <opencv2/opencv.hpp>
+#include "estimator/estimator.h"
+#include "estimator/parameters.h"
+#include "utility/visualization.h"
+#include "estimator/uwb_manager.h"
+#include "nlink_parser/LinktrackNodeframe2.h"
+
+map<double, OdometryVins> data[5];
+ros::Publisher pub_cent_odometry;
+std::mutex m_buf;
+void self_odometry_callback(const nav_msgs::OdometryConstPtr &msg, int idx)
+{
+    m_buf.lock();
+    Eigen::Vector3d ps, vs, ws;
+    Eigen::Quaterniond rs;
+    tf::pointMsgToEigen(msg->pose.pose.position, ps);
+    tf::vectorMsgToEigen(msg->twist.twist.linear, vs);
+    tf::vectorMsgToEigen(msg->twist.twist.angular, ws);
+    tf::quaternionMsgToEigen(msg->pose.pose.orientation, rs);
+    OdometryVins tmp(ps, vs, ws, rs, msg->header.stamp.toSec());
+    data[idx][tmp.time]=tmp;
+    m_buf.unlock();
+}
+void sync_process()
+{
+    int failnum=0;
+    while (1)
+    {
+        double time = 0;
+        m_buf.lock();
+        cout<<data[1].size()<<" "<<data[2].size()<<" "<<data[3].size()<<endl;
+        if (!data[1].empty())
+        {
+            bool f2=false,f3=false;
+            OdometryVins a_now[4];
+            a_now[1]=data[1].begin()->second;
+            f2=OdometryVins::queryOdometryMap(data[2],a_now[1].time,a_now[2],0.02);
+            f3=OdometryVins::queryOdometryMap(data[3],a_now[1].time,a_now[3],0.02);
+            if (f2&&f3)
+            {
+                Eigen::Vector3d ps = Eigen::Vector3d::Zero(), vs = Eigen::Vector3d::Zero(), ws;
+                for (int i = 1; i <= 3; i++)
+                {
+                    ps += a_now[i].Ps;
+                    vs += a_now[i].Vs;
+                }
+                ps /= 3;
+                vs /= 3;
+                Eigen::Vector3d p1 = a_now[2].Ps - a_now[1].Ps, p2 = a_now[3].Ps - a_now[1].Ps;
+                p1.normalize();
+                p2.normalize();
+                Eigen::Vector3d p3 = p1.cross(p2);
+                p3.normalize();
+                Eigen::Matrix3d rot;
+                rot(0, 0) = p1(0), rot(0, 1) = p1(1), rot(0, 2) = p1(2);
+                rot(1, 0) = p2(0), rot(1, 1) = p2(1), rot(1, 2) = p2(2);
+                rot(2, 0) = p3(0), rot(2, 1) = p3(1), rot(2, 2) = p3(2);
+                rot.transposeInPlace();
+                OdometryVins cent(ps, vs, ws, Eigen::Quaterniond{rot}, a_now[1].time);
+                nav_msgs::Odometry odometry;
+                odometry.header.stamp = ros::Time(a_now[1].time);
+                odometry.header.frame_id = "world";
+                tf::pointEigenToMsg(ps, odometry.pose.pose.position);
+                tf::quaternionEigenToMsg(cent.Rs, odometry.pose.pose.orientation);
+                tf::vectorEigenToMsg(cent.Vs, odometry.twist.twist.linear);
+                pub_cent_odometry.publish(odometry);
+                cout << ps << endl;
+                failnum=0;
+                data[1].erase(data[1].begin());
+            }
+            else{
+                failnum++;
+            }
+        }
+        if(failnum>=40){
+            failnum=0;
+            data[1].erase(data[1].begin());
+        }
+        while(data[2].size()>0&&data[2].begin()->second.time<data[1].begin()->second.time-0.1)
+        data[2].erase(data[2].begin());
+        while(data[3].size()>0&&data[3].begin()->second.time<data[1].begin()->second.time-0.1)
+        data[3].erase(data[3].begin());
+        m_buf.unlock();
+        std::chrono::milliseconds dura(2);
+        std::this_thread::sleep_for(dura);
+    }
+}
+int main(int argc, char **argv)
+{
+    ros::init(argc, argv, "vins_estimator");
+    ros::NodeHandle n;
+    ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Info);
+    ros::Subscriber sub_self_odometry[4];
+    pub_cent_odometry = n.advertise<nav_msgs::Odometry>("/ag0/imu_propagate", 1000);
+    for (int i = 1; i <= 3; i++)
+    {
+        sub_self_odometry[i] = n.subscribe<nav_msgs::Odometry>("/ag" + std::to_string(i) + "/vins_estimator/imu_propagate", 500, boost::bind(self_odometry_callback, _1, i));
+    }
+    std::thread sync_thread{sync_process};
+    ros::spin();
+
+    return 0;
+}

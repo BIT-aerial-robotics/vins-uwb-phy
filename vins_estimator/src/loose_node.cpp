@@ -96,9 +96,9 @@ void pub(int tot, int cnt)
                 double dis = (anchor_create_pos[i] - anchor_create_pos[j]).norm() + noise_normal_distribution(generator);
                 // printf("dis=== %lf ",dis);
                 UWBFactor_anchor_and_anchor *self_factor = new UWBFactor_anchor_and_anchor(dis, 0.2);
-                problem2.AddResidualBlock(
-                    new ceres::AutoDiffCostFunction<UWBFactor_anchor_and_anchor, 1, 3, 3>(self_factor),
-                    NULL, para_anchor_est[i], para_anchor_est[j]);
+                // problem2.AddResidualBlock(
+                //     new ceres::AutoDiffCostFunction<UWBFactor_anchor_and_anchor, 1, 3, 3>(self_factor),
+                //     NULL, para_anchor_est[i], para_anchor_est[j]);
             }
         }
         // for(int i=1;i<=3;i++){
@@ -129,6 +129,10 @@ void pub(int tot, int cnt)
                 odometry.header.frame_id = "world";
                 odometry.header.stamp = ros::Time().fromSec(para_agent_time[i]);
                 odometry.child_frame_id = "world";
+                // for(int k=0;k<=3;k++){
+                //     odometry.twist.covariance[k]=range_mea[j][i][k];
+                //     printf("%d %d %d range=%lf",j,i,k,range_mea[j][i][k]);
+                // }
                 tf::pointEigenToMsg(a_pos, odometry.pose.pose.position);
                 tf::quaternionEigenToMsg(a_r, odometry.pose.pose.orientation);
 
@@ -139,7 +143,7 @@ void pub(int tot, int cnt)
 
                 pub_odometry_frame[j].publish(odometry);
 
-                if (i % 2 == 0 && cnt>=20 &&cnt<=150)
+                if (i % 1 == 0 && cnt>=20 &&cnt<=200)
                 {
                     tag_pos[j][long_window_len] = a_pos;
                     for (int k = 0; k <= 3; k++)
@@ -148,19 +152,19 @@ void pub(int tot, int cnt)
                         //para_bias_est[j][long_window_len][k][0] = long_window_len == 0 ? range_mea_est[j][long_window_len] / 1.8 * 0.1 : para_bias_est[j][long_window_len - 1][k][0];
                         para_bias_est[j][k][long_window_len][0]=0;
                         UWBFactor_connect_pos *self_factor = new UWBFactor_connect_pos(
-                            tag_pos[j][long_window_len], range_mea_est[j][long_window_len][k], 0.05);
+                            tag_pos[j][long_window_len], range_mea_est[j][long_window_len][k], 0.05+4*range_mea_est[j][long_window_len][k]*range_mea_est[j][long_window_len][k]);
                         problem2.AddResidualBlock(
                             new ceres::AutoDiffCostFunction<UWBFactor_connect_pos, 1, 3, 1>(self_factor),
                             NULL,
                             para_anchor_est[k], para_bias_est[j][k][long_window_len]);
                         if (long_window_len >= 1)
                         {
-                            UWBBiasFactor *bias_factor = new UWBBiasFactor(
-                                para_bias_est[j][k][long_window_len-1][0], 0.005);
-                            problem2.AddResidualBlock(
-                                new ceres::AutoDiffCostFunction<UWBBiasFactor, 1, 1>(bias_factor),
-                                NULL,
-                                para_bias_est[j][k][long_window_len]);
+                            // UWBBiasFactor *bias_factor = new UWBBiasFactor(
+                            //     para_bias_est[j][k][long_window_len-1][0], 0.005);
+                            // problem2.AddResidualBlock(
+                            //     new ceres::AutoDiffCostFunction<UWBBiasFactor, 1, 1>(bias_factor),
+                            //     NULL,
+                            //     para_bias_est[j][k][long_window_len]);
                             problem2.AddParameterBlock(para_bias_est[j][k][long_window_len],1);
                             problem2.SetParameterBlockConstant(para_bias_est[j][k][long_window_len]);
                         }
@@ -171,24 +175,25 @@ void pub(int tot, int cnt)
                     }
                 }
             }
-            if(i%2==0&& cnt>=20 &&cnt<=150)
+            if(i%1==0&& cnt>=20 &&cnt<=200)
             long_window_len += 1;
         }
         isPub[para_agent_time[i]] = 1;
     }
-    if (cnt <= 150 && cnt >= 20)
+    ceres::Solver::Options options;
+    options.linear_solver_type = ceres::DENSE_QR;
+    options.trust_region_strategy_type = ceres::LEVENBERG_MARQUARDT;
+    // options.minimizer_progress_to_stdout = true;
+    options.max_solver_time_in_seconds = 3;
+    options.max_num_iterations = 100;
+    ceres::Solver::Summary summary;
+    if (cnt <= 200 && cnt >= 20)
     {
         printf("build finish  long_window_size %d\n",long_window_len);
-        ceres::Solver::Options options;
-        options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
-        // options.minimizer_progress_to_stdout = true;
-        options.max_solver_time_in_seconds = 3;
-        options.max_num_iterations = 100;
-        ceres::Solver::Summary summary;
-
         ceres::Solve(options, &problem2, &summary);
-        std::cout << " anchor solve" << summary.BriefReport() << std::endl;
+        //std::cout << " anchor solve" << summary.FullReport() << std::endl;
     }
+    
     for (int i = 0; i <= 3; i++)
     {
         for (int j = 0; j < i; j++)
@@ -283,15 +288,29 @@ void sync_process()
                     para_pos[1][opt_frame_len][2] = 0;
                     para_yaw[1][opt_frame_len][0] = 0;
 
-                    para_pos[2][opt_frame_len][0] = -0.478;
-                    para_pos[2][opt_frame_len][1] = -0.828;
+                    para_pos[2][opt_frame_len][0] = 0;
+                    para_pos[2][opt_frame_len][1] = 0;
                     para_pos[2][opt_frame_len][2] = 0;
-                    para_yaw[2][opt_frame_len][0] = 120;
+                    para_yaw[2][opt_frame_len][0] = 0;
 
-                    para_pos[3][opt_frame_len][0] = 0.478;
-                    para_pos[3][opt_frame_len][1] = -0.828;
+                    para_pos[3][opt_frame_len][0] = 0;
+                    para_pos[3][opt_frame_len][1] = 0;
                     para_pos[3][opt_frame_len][2] = 0;
-                    para_yaw[3][opt_frame_len][0] = -120;
+                    para_yaw[3][opt_frame_len][0] = 0;
+                    // para_pos[1][opt_frame_len][0] = 0;
+                    // para_pos[1][opt_frame_len][1] = 0;
+                    // para_pos[1][opt_frame_len][2] = 0;
+                    // para_yaw[1][opt_frame_len][0] = 0;
+
+                    // para_pos[2][opt_frame_len][0] = -0.478;
+                    // para_pos[2][opt_frame_len][1] = -0.828;
+                    // para_pos[2][opt_frame_len][2] = 0;
+                    // para_yaw[2][opt_frame_len][0] = 120;
+
+                    // para_pos[3][opt_frame_len][0] = 0.478;
+                    // para_pos[3][opt_frame_len][1] = -0.828;
+                    // para_pos[3][opt_frame_len][2] = 0;
+                    // para_yaw[3][opt_frame_len][0] = -120;
 
                     para_anchor[0][0] = 6.5, para_anchor[0][1] = -0.6, para_anchor[0][2] = 4.5;
                     para_anchor[1][0] = 26.5, para_anchor[1][1] = -0.6, para_anchor[1][2] = 4.5;
@@ -490,7 +509,7 @@ void sync_process()
         options.trust_region_strategy_type = ceres::DOGLEG;
         options.max_solver_time_in_seconds = 0.1;
         options.max_num_iterations = 8;
-        if(USE_UWB_INIT&&sys_cnt>50){
+        if(USE_UWB_INIT&&sys_cnt>200){
             options.max_solver_time_in_seconds = 0.5;
             options.max_num_iterations = 20;
         }

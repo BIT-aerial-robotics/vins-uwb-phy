@@ -11,7 +11,7 @@
 
 using namespace ros;
 using namespace Eigen;
-ros::Publisher pub_odometry, pub_latest_odometry;
+ros::Publisher pub_odometry, pub_latest_odometry,pub_world_odometry;
 ros::Publisher pub_path;
 ros::Publisher pub_point_cloud, pub_margin_cloud;
 ros::Publisher pub_key_poses;
@@ -33,20 +33,21 @@ size_t pub_counter = 0;
 
 void registerPub(ros::NodeHandle &n)
 {
-    pub_latest_odometry = n.advertise<nav_msgs::Odometry>("imu_propagate", 1000);
-    pub_path = n.advertise<nav_msgs::Path>("path", 1000);
-    pub_odometry = n.advertise<nav_msgs::Odometry>("odometry", 1000);
-    pub_odometry_world=n.advertise<nav_msgs::Odometry>("odometry_world", 1000);
-    pub_point_cloud = n.advertise<sensor_msgs::PointCloud>("point_cloud", 1000);
-    pub_margin_cloud = n.advertise<sensor_msgs::PointCloud>("margin_cloud", 1000);
-    pub_key_poses = n.advertise<visualization_msgs::Marker>("key_poses", 1000);
-    pub_camera_pose = n.advertise<nav_msgs::Odometry>("camera_pose", 1000);
-    pub_camera_pose_visual = n.advertise<visualization_msgs::MarkerArray>("camera_pose_visual", 1000);
-    pub_keyframe_pose = n.advertise<nav_msgs::Odometry>("keyframe_pose", 1000);
-    pub_keyframe_point = n.advertise<sensor_msgs::PointCloud>("keyframe_point", 1000);
-    pub_extrinsic = n.advertise<nav_msgs::Odometry>("extrinsic", 1000);
-    pub_image_track = n.advertise<sensor_msgs::Image>("image_track", 1000);
-    pub_image_track_line=n.advertise<sensor_msgs::Image>("image_track_line", 1000);
+    pub_latest_odometry = n.advertise<nav_msgs::Odometry>("vins_estimator/imu_propagate_noworld", 1000);
+    pub_world_odometry = n.advertise<nav_msgs::Odometry>("vins_estimator/imu_propagate", 1000);
+    pub_path = n.advertise<nav_msgs::Path>("vins_estimator/path", 1000);
+    pub_odometry = n.advertise<nav_msgs::Odometry>("vins_estimator/odometry", 1000);
+    pub_odometry_world=n.advertise<nav_msgs::Odometry>("vins_estimator/odometry_world", 1000);
+    pub_point_cloud = n.advertise<sensor_msgs::PointCloud>("vins_estimator/point_cloud", 1000);
+    pub_margin_cloud = n.advertise<sensor_msgs::PointCloud>("vins_estimator/margin_cloud", 1000);
+    pub_key_poses = n.advertise<visualization_msgs::Marker>("vins_estimator/key_poses", 1000);
+    pub_camera_pose = n.advertise<nav_msgs::Odometry>("vins_estimator/camera_pose", 1000);
+    pub_camera_pose_visual = n.advertise<visualization_msgs::MarkerArray>("vins_estimator/camera_pose_visual", 1000);
+    pub_keyframe_pose = n.advertise<nav_msgs::Odometry>("vins_estimator/keyframe_pose", 1000);
+    pub_keyframe_point = n.advertise<sensor_msgs::PointCloud>("vins_estimator/keyframe_point", 1000);
+    pub_extrinsic = n.advertise<nav_msgs::Odometry>("vins_estimator/extrinsic", 1000);
+    pub_image_track = n.advertise<sensor_msgs::Image>("vins_estimator/image_track", 1000);
+    pub_image_track_line=n.advertise<sensor_msgs::Image>("vins_estimator/image_track_line", 1000);
 
     cameraposevisual.setScale(0.1);
     cameraposevisual.setLineWidth(0.01);
@@ -67,8 +68,36 @@ void pubLatestOdometry(const Eigen::Vector3d &P, const Eigen::Quaterniond &Q, co
     odometry.twist.twist.linear.x = V.x();
     odometry.twist.twist.linear.y = V.y();
     odometry.twist.twist.linear.z = V.z();
-    odometry.twist.twist.angular.x=P.norm();
     pub_latest_odometry.publish(odometry);
+}
+void pubLatestOdometry(const Eigen::Vector3d &P, const Eigen::Quaterniond &Q, const Eigen::Vector3d &V, double t,OdometryVins tmp)
+{
+    nav_msgs::Odometry odometry;
+    odometry.header.stamp = ros::Time(t);
+    odometry.header.frame_id = "world";
+    odometry.pose.pose.position.x = P.x();
+    odometry.pose.pose.position.y = P.y();
+    odometry.pose.pose.position.z = P.z();
+    odometry.pose.pose.orientation.x = Q.x();
+    odometry.pose.pose.orientation.y = Q.y();
+    odometry.pose.pose.orientation.z = Q.z();
+    odometry.pose.pose.orientation.w = Q.w();
+    odometry.twist.twist.linear.x = V.x();
+    odometry.twist.twist.linear.y = V.y();
+    odometry.twist.twist.linear.z = V.z();
+    pub_latest_odometry.publish(odometry);
+    //tmp.getYawAndNorm();
+    Eigen::Quaterniond qs=tmp.Rs;
+    Eigen::Vector3d ps=tmp.Ps,vs;
+    ps=qs*(P+Q*HINGE)+ps;
+    vs=qs*V;
+    qs=qs*Q;
+    qs.normalize();
+    tf::pointEigenToMsg(ps,odometry.pose.pose.position);
+    tf::quaternionEigenToMsg(qs,odometry.pose.pose.orientation);
+    tf::vectorEigenToMsg(vs,odometry.twist.twist.linear);
+    pub_world_odometry.publish(odometry);
+
 }
 void pubLatestOdometry(const Eigen::Vector3d &P, const Eigen::Quaterniond &Q, const Eigen::Vector3d &V, double t,double range[])
 {
@@ -86,8 +115,7 @@ void pubLatestOdometry(const Eigen::Vector3d &P, const Eigen::Quaterniond &Q, co
     odometry.twist.twist.linear.y = V.y();
     odometry.twist.twist.linear.z = V.z();
     odometry.twist.twist.angular.x=P.norm();
-    for(int i=0;i<=3;i++)
-    odometry.twist.covariance[i]=range[i];
+    for(int i=0;i<=3;i++)odometry.twist.covariance[i]=range[i];
     pub_latest_odometry.publish(odometry);
 }
 
@@ -163,23 +191,23 @@ void pubOdometry(const Estimator &estimator, const std_msgs::Header &header)
         odometry_world.child_frame_id = "world";
         Eigen::Vector3d imups,p_world=estimator.Ps[WINDOW_SIZE];
         OdometryVins tmp;
-        bool flag=OdometryVins::queryOdometryMap(estimator.other_RT_map[AGENT_NUMBER],header.stamp.toSec(),tmp,0.5);
-        if(flag&&estimator.to_world_rt_flag){
-            imups=tmp.Ps;
-            Eigen::Quaterniond q_world=tmp.Rs*Quaterniond(estimator.Rs[WINDOW_SIZE]);
-            q_world.normalize();
-            p_world=tmp.Rs.toRotationMatrix()*p_world+imups;
-            tf::pointEigenToMsg(p_world,odometry_world.pose.pose.position);
-            tf::quaternionEigenToMsg(q_world,odometry_world.pose.pose.orientation);
-            for(int i=0;i<=3;i++){
-                double dis=(p_world-estimator.UWB_anchor[i]).norm();
-                double bias=estimator.para_UWB_bias[i][0];
-                printf("idx= %d %lf %lf ",i,dis,bias);
-            }printf("\n");
-            //pub_odometry_world.publish(odometry_world);
-            //Eigen::Vector3d eul=Utility::R2ypr(tmp.Rs.toRotationMatrix());
-            //ROS_INFO("%lf %lf %lf %lf %lf %lf",eul[0],eul[1],eul[2],imups.x(),imups.y(),imups.z());
-        }
+        // bool flag=OdometryVins::queryOdometryMap(estimator.other_RT_map[AGENT_NUMBER],header.stamp.toSec(),tmp,0.5);
+        // if(flag&&estimator.to_world_rt_flag){
+        //     imups=tmp.Ps;
+        //     Eigen::Quaterniond q_world=tmp.Rs*Quaterniond(estimator.Rs[WINDOW_SIZE]);
+        //     q_world.normalize();
+        //     p_world=tmp.Rs.toRotationMatrix()*p_world+imups;
+        //     tf::pointEigenToMsg(p_world,odometry_world.pose.pose.position);
+        //     tf::quaternionEigenToMsg(q_world,odometry_world.pose.pose.orientation);
+        //     for(int i=0;i<=3;i++){
+        //         double dis=(p_world-estimator.UWB_anchor[i]).norm();
+        //         double bias=estimator.para_UWB_bias[i][0];
+        //         printf("idx= %d %lf %lf ",i,dis,bias);
+        //     }printf("\n");
+        //     //pub_odometry_world.publish(odometry_world);
+        //     //Eigen::Vector3d eul=Utility::R2ypr(tmp.Rs.toRotationMatrix());
+        //     //ROS_INFO("%lf %lf %lf %lf %lf %lf",eul[0],eul[1],eul[2],imups.x(),imups.y(),imups.z());
+        // }
         nav_msgs::Odometry odometry;
         odometry.header = header;
         odometry.header.frame_id = "world";

@@ -91,6 +91,7 @@ class Estimator
     void inputRange(int id,double t,double dis);
     bool getRange(int id,double t,double &dis);
     void getPoseAndUWB(int &tot, std::map<double, int> &mp);
+    void getPoseAndOtherAgent(int &tot, std::map<double, int> &mp);
     void eigenTarrarYaw(Eigen::Vector3d x, Eigen::Quaterniond q, double val[]);
     void arrayTeigenYaw(double val[],Eigen::Vector3d &x,Eigen::Quaterniond &q);
     void eigenTarrarYaw(Eigen::Vector3d x, Eigen::Matrix3d q, double val[]);
@@ -101,6 +102,18 @@ class Estimator
     void inputOtherPose(int id,OdometryVins tmp);
     void save_rt();
     void clearMap();
+    void inputAnchor(int id,OdometryVins tmp);
+    void getIndexByCycle(int &x,int &y){
+        if(AGENT_NUMBER==1){
+            x=2,y=3;
+        }
+        else if(AGENT_NUMBER==2){
+            x=3,y=1;
+        }
+        else{
+            x=1,y=2;
+        }
+    }
     //bool queryOdometry(map<double,OdometryVins>mp,double time,OdometryVins &query);
     enum SolverFlag
     {
@@ -205,22 +218,29 @@ class Estimator
     std::map<double,OdometryVins>gt_map[5];
     std::map<double,OdometryVins>other_RT_map[5];
     std::map<double,OdometryVins>other_pose_map[5];
+    OdometryVins mat_2_world;
     int uwb_length=0;
     int kin_length=0;
-    double kin_fre_time[WINDOW_SIZE*30];
-    double uwb_fre_time[WINDOW_SIZE*30];
+    double kin_fre_time[WINDOW_SIZE*15];
+    double uwb_fre_time[WINDOW_SIZE*15];
     std::map<double, int> uwb_2_index;
     std::map<double, int> kin_2_index;
-    int    uwb_can[5][(WINDOW_SIZE + 1)*30];
-    int    kin_can[5][(WINDOW_SIZE + 1)*30];
-    double uwb_mea[5][(WINDOW_SIZE + 1)*30];
-    
+    int    uwb_can[5][(WINDOW_SIZE + 1)*15];
+    int    kin_can[5][(WINDOW_SIZE + 1)*15];
+    double uwb_mea[5][(WINDOW_SIZE + 1)*15];
+    double para_imu_z_val[(WINDOW_SIZE+1)*15][1];
+    Eigen::Vector3d kin_mea_ps[4][(WINDOW_SIZE + 1)*15];
+    Eigen::Vector3d kin_mea_vs[4][(WINDOW_SIZE + 1)*15];
+    Eigen::Quaterniond kin_mea_qs[4][(WINDOW_SIZE + 1)*15];
     double para_UWB_anchor[5][3];
     double para_UWB_bias[5][1];
     Eigen::Vector3d UWB_anchor[5];
-    double para_uwb_local_world_Rt[(WINDOW_SIZE + 1)*30][SIZE_POSE];
-    double para_kin_local_world_Rt[(WINDOW_SIZE + 1)*30][SIZE_POSE];
+    double para_uwb_local_world_Rt[(WINDOW_SIZE + 1)*15][SIZE_POSE];
+    double para_kin_local_world_Rt[5][(WINDOW_SIZE + 1)*15][SIZE_POSE];
     int to_world_rt_flag;
 
+
+    double para_hinge[3];
+    double para_length[1];
     
 };

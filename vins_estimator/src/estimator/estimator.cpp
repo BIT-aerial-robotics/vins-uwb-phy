@@ -15,33 +15,35 @@ Estimator::Estimator() : f_manager{Rs}
     ROS_INFO("init begins");
     initThreadFlag = false;
     clearState();
-    para_UWB_anchor[0][0]=0;
-    para_UWB_anchor[0][1]=0;
-    para_UWB_anchor[0][2]=1.5;
+    para_UWB_anchor[0][0] = -4.17;
+    para_UWB_anchor[0][1] = -4.35;
+    para_UWB_anchor[0][2] = 1.38;
 
+    para_UWB_anchor[1][0] = 2.93;
+    para_UWB_anchor[1][1] = -3.65;
+    para_UWB_anchor[1][2] = 1.3;
 
-    para_UWB_anchor[1][0]=20;
-    para_UWB_anchor[1][1]=0;
-    para_UWB_anchor[1][2]=1.5;
+    para_UWB_anchor[2][0] = 2.76;
+    para_UWB_anchor[2][1] = 1.12;
+    para_UWB_anchor[2][2] = 1.59;
 
+    para_UWB_anchor[3][0] = -4.48;
+    para_UWB_anchor[3][1] = 1.17;
+    para_UWB_anchor[3][2] = 1.14;
 
-    para_UWB_anchor[2][0]=0;
-    para_UWB_anchor[2][1]=10;
-    para_UWB_anchor[2][2]=1.5;
+    para_UWB_anchor[4][0] = 5;
+    para_UWB_anchor[4][1] = 4;
+    para_UWB_anchor[4][2] = 3.0;
 
-    para_UWB_anchor[3][0]=5;
-    para_UWB_anchor[3][1]=13;
-    para_UWB_anchor[3][2]=1.5;
-
-    para_UWB_anchor[4][0]=5;
-    para_UWB_anchor[4][1]=4;
-    para_UWB_anchor[4][2]=3.0;
-
-    
-    for(int uwbIdx=0;uwbIdx<=4;uwbIdx++){
-        para_UWB_bias[uwbIdx][0]=0.0;
-        UWB_anchor[uwbIdx]=Eigen::Vector3d(para_UWB_anchor[uwbIdx][0],para_UWB_anchor[uwbIdx][1],para_UWB_anchor[uwbIdx][2]);
+    for (int uwbIdx = 0; uwbIdx <= 4; uwbIdx++)
+    {
+        para_UWB_bias[uwbIdx][0] = 0.0;
+        UWB_anchor[uwbIdx] = Eigen::Vector3d(para_UWB_anchor[uwbIdx][0], para_UWB_anchor[uwbIdx][1], para_UWB_anchor[uwbIdx][2]);
     }
+    para_hinge[0]=HINGE(0);
+    para_hinge[1]=HINGE(1);
+    para_hinge[2]=HINGE(2);
+    para_length[0]=0.841;
 }
 
 Estimator::~Estimator()
@@ -56,7 +58,7 @@ Estimator::~Estimator()
 void Estimator::clearState()
 {
     mProcess.lock();
-    to_world_rt_flag=0;
+    to_world_rt_flag = 0;
     while (!accBuf.empty())
         accBuf.pop();
     while (!gyrBuf.empty())
@@ -258,11 +260,16 @@ void Estimator::inputIMU(double t, const Vector3d &linearAcceleration, const Vec
     {
         mPropagate.lock();
         fastPredictIMU(t, linearAcceleration, angularVelocity);
-        double range[10];
-        for(int i=0;i<=3;i++){
-            getRange(i,t,range[i]);
-        }
-        pubLatestOdometry(latest_P, latest_Q, latest_V, t,range);
+        // double range[10];
+        // for(int i=0;i<=3;i++){
+        //     getRange(i,t,range[i]);
+        // }
+        // OdometryVins tmp;
+        // OdometryVins::queryOdometryMap(gt_map[AGENT_NUMBER],t,tmp,0.1);
+        if (to_world_rt_flag)
+            pubLatestOdometry(latest_P, latest_Q, latest_V, t, mat_2_world);
+        else
+            pubLatestOdometry(latest_P, latest_Q, latest_V, t);
         mPropagate.unlock();
     }
 }
@@ -507,10 +514,10 @@ void Estimator::processIMU(double t, double dt, const Vector3d &linear_accelerat
     if (frame_count != 0)
     {
         pre_integrations[frame_count]->push_back(dt, linear_acceleration, angular_velocity, t);
-        tmp_pre_integration->push_back(dt, linear_acceleration, angular_velocity,t);
-        //pre_integrations[frame_count]->push_back(dt, linear_acceleration, angular_velocity);
-        // if(solver_flag != NON_LINEAR)
-        //tmp_pre_integration->push_back(dt, linear_acceleration, angular_velocity);
+        tmp_pre_integration->push_back(dt, linear_acceleration, angular_velocity, t);
+        // pre_integrations[frame_count]->push_back(dt, linear_acceleration, angular_velocity);
+        //  if(solver_flag != NON_LINEAR)
+        // tmp_pre_integration->push_back(dt, linear_acceleration, angular_velocity);
 
         dt_buf[frame_count].push_back(dt);
         linear_acceleration_buf[frame_count].push_back(linear_acceleration);
@@ -695,6 +702,7 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
         last_R0 = Rs[0];
         last_P0 = Ps[0];
         updateLatestStates();
+        clearMap();
     }
 }
 
@@ -1266,11 +1274,13 @@ void Estimator::optimization()
         }
     }
 
-
-    if(USE_UWB){
-        for(int uwbIdx=0;uwbIdx<=3;uwbIdx++){
-            problem.AddParameterBlock(para_UWB_anchor[uwbIdx],3);
-            problem.AddParameterBlock(para_UWB_bias[uwbIdx],1);
+    // ROS_INFO("USE_UWB ==== %d \n",USE_UWB);
+    if (USE_UWB)
+    {
+        for (int uwbIdx = 0; uwbIdx <= 3; uwbIdx++)
+        {
+            problem.AddParameterBlock(para_UWB_anchor[uwbIdx], 3);
+            problem.AddParameterBlock(para_UWB_bias[uwbIdx], 1);
             // UwbFactor_old *conxt =new UwbFactor_old(para_UWB_Anchor[uwbIdx], 0.001);
 
             // problem.AddResidualBlock(
@@ -1278,65 +1288,58 @@ void Estimator::optimization()
             //         NULL,para_UWB_Anchor[uwbIdx]);
 
             problem.SetParameterBlockConstant(para_UWB_anchor[uwbIdx]);
-            problem.SetParameterBlockConstant(para_UWB_bias[uwbIdx]);
+            // problem.SetParameterBlockConstant(para_UWB_bias[uwbIdx]);
             UWBBiasFactor *conxt = new UWBBiasFactor(para_UWB_bias[uwbIdx][0], 0.008);
             problem.AddResidualBlock(
                 new ceres::AutoDiffCostFunction<UWBBiasFactor, 1, 1>(conxt),
-                NULL,para_UWB_bias[uwbIdx]);
-
+                NULL, para_UWB_bias[uwbIdx]);
         }
-        if(frame_sol_cnt>=5)
+        if (frame_sol_cnt >= 5)
         {
-            uwb_length=0;
+            uwb_length = 0;
             uwb_2_index.clear();
-            //ROS_INFO("begin uwb add get Pose and UWB");
-            getPoseAndUWB(uwb_length,uwb_2_index);
-            int uwbNum=0,lowNum=0;
-            if(AGENT_NUMBER==1){
-                uwbNum=3,lowNum=0;
-            }
-            else if(AGENT_NUMBER==2)uwbNum=3,lowNum=0;
-            else uwbNum=3,lowNum=0;
+            // ROS_INFO("begin uwb add get Pose and UWB");
+            getPoseAndUWB(uwb_length, uwb_2_index);
 
-            int resNum=0;
-            int lostNum=0;
-            int safeMen=0;
-            
-            if(uwb_length>0)
+            int resNum = 0;
+            int lostNum = 0;
+            int safeMen = 0;
+
+            if (uwb_length > 0)
             {
-                for(int i=0;i<=WINDOW_SIZE;i++)
+                for (int i = 0; i <= WINDOW_SIZE; i++)
                 {
-                    double time=Headers[i];
-                    auto iter=uwb_2_index.lower_bound(time);
-                    if(iter!=uwb_2_index.end()&&abs(time-iter->first)<=0.02)
+                    double time = Headers[i];
+                    auto iter = uwb_2_index.lower_bound(time);
+                    if (iter != uwb_2_index.end() && abs(time - iter->first) <= 0.02)
                     {
                         int nxt = iter->second;
-                        for(int uwbIdx=lowNum;uwbIdx<=uwbNum;uwbIdx++)
+                        for (int uwbIdx = lowNum; uwbIdx <= uwbNum; uwbIdx++)
                         {
-                            
-                            if(uwb_can[uwbIdx][nxt]){
-                                Eigen::Vector3d sp1, sp2;
-                                Eigen::Quaterniond sr1, sr2;
-                                arrayTeigenYaw(para_uwb_local_world_Rt[nxt], sp1, sr1);
-                                UwbFactor *conxt = new UwbFactor(sp1, sr1.toRotationMatrix(), uwb_mea[uwbIdx][nxt], 0.04);
-                                // problem.AddResidualBlock(
-                                //     new ceres::AutoDiffCostFunction<UwbFactor, 1, 7, 3,1>(conxt),
-                                //     NULL,
-                                //     para_Pose[i], para_UWB_anchor[uwbIdx],para_UWB_bias[uwbIdx]);
-                                
 
-                                Eigen::Vector3d x(para_Pose[i]);
-                                x=sr1.toRotationMatrix()*x+sp1;
-                                Eigen::Vector3d y=x-UWB_anchor[uwbIdx];
-                                //ROS_INFO("%d %d %lf %lf %lf %lf %lf error=%lf",uwbIdx,i,x.x(),x.y(),x.z(),uwb_mea[uwbIdx][nxt],y.norm(),y.norm()-uwb_mea[uwbIdx][nxt]);
-                                resNum+=1;
+                            if (uwb_can[uwbIdx][nxt])
+                            {
+                                Eigen::Vector3d sp1=mat_2_world.Ps, sp2;
+                                Eigen::Quaterniond sr1=mat_2_world.Rs, sr2;
+                                //arrayTeigenYaw(para_uwb_local_world_Rt[nxt], sp1, sr1);
+                                UwbFactor *conxt = new UwbFactor(sp1, sr1.toRotationMatrix(), uwb_mea[uwbIdx][nxt], 0.04);
+                                problem.AddResidualBlock(
+                                    new ceres::AutoDiffCostFunction<UwbFactor, 1, 7, 3, 1>(conxt),
+                                    NULL,
+                                    para_Pose[i], para_UWB_anchor[uwbIdx], para_UWB_bias[uwbIdx]);
+
+                                // Eigen::Vector3d x(para_Pose[i]);
+                                // x=sr1.toRotationMatrix()*x+sp1;
+                                // Eigen::Vector3d y=x-UWB_anchor[uwbIdx];
+                                // ROS_INFO("%d %d %lf %lf %lf %lf %lf error=%lf",uwbIdx,i,x.x(),x.y(),x.z(),uwb_mea[uwbIdx][nxt],y.norm(),y.norm()-uwb_mea[uwbIdx][nxt]);
+                                resNum += 1;
                             }
                         }
                     }
                     int cnt = pre_integrations[i]->last_t_buf.size();
                     int imu_frame_num; // min(cnt, imu_delta_fre);
                     int shift_num;     //= cnt / imu_frame_num;
-                    if (cnt == 0 || pre_integrations[i]->sum_dt > 3 || cnt > 300 || IMU_SAEM_FRE==0)
+                    if (cnt == 0 || pre_integrations[i]->sum_dt > 3 || cnt > 300 || IMU_SAEM_FRE == 0)
                     {
                         imu_frame_num = 0;
                         shift_num = 100;
@@ -1347,47 +1350,107 @@ void Estimator::optimization()
                         shift_num = cnt / imu_frame_num;
                     }
                     int tt = 0;
-                    for (int j = 1; j < cnt  && i >= 1; j += shift_num)
+                    for (int j = 1; j < cnt && i >= 1; j += shift_num)
                     {
                         time = pre_integrations[i]->last_t_buf[j];
-                        auto iter=uwb_2_index.lower_bound(time);
-                        if(iter==uwb_2_index.end()||abs(time-iter->first)>0.02)continue;
+                        auto iter = uwb_2_index.lower_bound(time);
+                        if (iter == uwb_2_index.end() || abs(time - iter->first) > 0.02)
+                            continue;
                         int nxt = iter->second;
                         Eigen::Vector3d delta_p = pre_integrations[i]->delta_p_buf[j];
                         Eigen::Vector3d delta_v = pre_integrations[i]->delta_v_buf[j];
                         Eigen::Matrix3d delta_q = pre_integrations[i]->delta_q_buf[j].toRotationMatrix();
-                        Eigen::Vector3d xworldP, yworldP, eworldP;
-                        Eigen::Quaterniond xworldR, yworldR, eworldR;
-                        arrayTeigenYaw(para_uwb_local_world_Rt[nxt], eworldP, eworldR);
-                        for(int uwbIdx=lowNum;uwbIdx<=uwbNum;uwbIdx++)
-                        {   
-                            if(uwb_can[uwbIdx][nxt])
+                        Eigen::Vector3d xworldP, yworldP, eworldP=mat_2_world.Ps;
+                        Eigen::Quaterniond xworldR, yworldR, eworldR=mat_2_world.Rs;
+                        //arrayTeigenYaw(para_uwb_local_world_Rt[nxt], eworldP, eworldR);
+                        for (int uwbIdx = lowNum; uwbIdx <= uwbNum; uwbIdx++)
+                        {
+                            if (uwb_can[uwbIdx][nxt])
                             {
-                                
-                                UWBFactor_delta *conxt = new UWBFactor_delta(eworldP, eworldR.toRotationMatrix(), 
-                                delta_p,delta_q,uwb_fre_time[nxt]-Headers[i-1],uwb_mea[uwbIdx][nxt], 0.04);
-                                // problem.AddResidualBlock(
-                                //     new ceres::AutoDiffCostFunction<UWBFactor_delta, 1, 7,9,3,1>(conxt),
-                                //     NULL,
-                                //     para_Pose[i-1],para_SpeedBias[i-1],para_UWB_anchor[uwbIdx],para_UWB_bias[uwbIdx]);
-                                resNum+=1;
-                            }                 
-                        }    
+                                UWBFactor_delta *conxt = new UWBFactor_delta(eworldP, eworldR.toRotationMatrix(),
+                                                                             delta_p, delta_q, uwb_fre_time[nxt] - Headers[i - 1], uwb_mea[uwbIdx][nxt], 0.04);
+                                problem.AddResidualBlock(
+                                    new ceres::AutoDiffCostFunction<UWBFactor_delta, 1, 7, 9, 3, 1>(conxt),
+                                    NULL,
+                                    para_Pose[i - 1], para_SpeedBias[i - 1], para_UWB_anchor[uwbIdx], para_UWB_bias[uwbIdx]);
+                                resNum += 1;
+                            }
+                        }
                     }
                 }
             }
-            cout<<"uwb_length:"<<uwb_length<<"  "<<uwb_2_index.size()<<"  " << resNum <<endl;
+            cout << "uwb_length:" << uwb_length << "  " << uwb_2_index.size() << "  " << resNum << endl;
         }
     }
-    if(USE_KIN)
+    if (USE_KIN)
     {
-        if(frame_sol_cnt>=5)
+        problem.AddParameterBlock(para_hinge,3);
+        problem.AddParameterBlock(para_length,1);
+        problem.SetParameterBlockConstant(para_hinge);
+        problem.SetParameterBlockConstant(para_length);
+        if (frame_sol_cnt >= 5)
         {
             
+            kin_length = 0;
+            kin_2_index.clear();
+            if(USE_UWB){
+                if(to_world_rt_flag)
+                    getPoseAndOtherAgent(kin_length, kin_2_index);
+            }
+            else
+                getPoseAndOtherAgent(kin_length, kin_2_index);
+            
+            int resNum = 0;
+            int x, y;
+            getIndexByCycle(x, y);
+            if(kin_length>0){
+                for(int i=1;i<=3;i++){
+                    for(int j=0;j<kin_length;j++){
+                        problem.AddParameterBlock(para_kin_local_world_Rt[i][j],4);
+                        problem.SetParameterBlockConstant(para_kin_local_world_Rt[i][j]);
+                    }
+                }
+                for (int i = 0; i <= WINDOW_SIZE; i++)
+                {
+                    double time = Headers[i];
+                    auto iter = kin_2_index.lower_bound(time);
+                    if (iter != kin_2_index.end() && abs(time - iter->first) <= 0.02)
+                    {
+                        int nxt = iter->second;
+                        for(int j=1;j<=3;j++){
+                            if(AGENT_NUMBER!=j&&kin_can[j][nxt]){
+                                kinFactor_connect_4dof_tight *conxt = new kinFactor_connect_4dof_tight(mat_2_world.Ps,
+                                mat_2_world.Rs.toRotationMatrix(),
+                                kin_mea_ps[j][nxt],kin_mea_qs[j][nxt].toRotationMatrix(),0.05);
+                                problem.AddResidualBlock(
+                                    new ceres::AutoDiffCostFunction<kinFactor_connect_4dof_tight, 1, 7, 4, 3, 1>(conxt),
+                                    NULL,
+                                    para_Pose[i],para_kin_local_world_Rt[j][nxt],para_hinge,para_length);
+                                resNum += 1;
+                            }
+                        }
+                        if(kin_can[0][nxt]&&kin_can[x][nxt]&&kin_can[y][nxt]){
+                            //printf("%lf ",para_imu_z_val[nxt][0]);
+                            //printf("%lf %lf %lf %lf",kin_mea_qs[x][nxt].x(),kin_mea_qs[x][nxt].y(),kin_mea_qs[x][nxt].z(),kin_mea_qs[x][nxt].w());
+                            kinFactor_connect_hyp_4dof_tight *conxt2 = new kinFactor_connect_hyp_4dof_tight(
+                                mat_2_world.Ps,
+                                mat_2_world.Rs.toRotationMatrix(), kin_mea_ps[x][nxt],kin_mea_qs[x][nxt].toRotationMatrix(),
+                                kin_mea_ps[y][nxt],kin_mea_qs[y][nxt].toRotationMatrix(), para_imu_z_val[nxt][0], 0.01);
+                            problem.AddResidualBlock(
+                                    new ceres::AutoDiffCostFunction<kinFactor_connect_hyp_4dof_tight, 1, 7, 4, 4, 3>(conxt2),
+                                    NULL,
+                                    para_Pose[i], para_kin_local_world_Rt[x][nxt], para_kin_local_world_Rt[y][nxt], para_hinge);
+                            resNum+=1;
+                        }
+                        
+                    }//printf("\n");
+                }
+            }
+            cout << "kin_length:" << kin_length << "  " << kin_2_index.size() << "  " << resNum << endl;
         }
     }
     ROS_DEBUG("visual measurement count: %d", f_m_cnt);
-    // printf("prepare for ceres: %f \n", t_prepare.toc());
+    printf("dr.%d--prepare for ceres: %f other size=%d\n", frame_sol_cnt % 2, t_prepare.toc(),other_pose_map[1].size()+other_pose_map[2].size()+other_pose_map[3].size());
 
     ceres::Solver::Options options;
 
@@ -1599,8 +1662,9 @@ void Estimator::optimization()
         }
     }
     // printf("whole marginalization costs: %f \n", t_whole_marginalization.toc());
-    // printf("whole time for ceres: %f \n", t_whole.toc());
+    //
     save_rt();
+    printf("whole time for ceres: %f \n", t_whole.toc());
 }
 
 void Estimator::slideWindow()
@@ -2022,7 +2086,7 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
             f_manager.initFramePoseByPnP(frame_count, Ps, Rs, tic, ric);
         f_manager.triangulate(frame_count, Ps, Rs, tic, ric);
         f_manager.triangulateWithLine(frame_count, Ps, Rs, tic, ric);
-        onlyLineOpt();   // 三角化以后，优化一把
+        onlyLineOpt(); // 三角化以后，优化一把
         optimizationwithLine();
         // optimization();
         set<int> removeIndex;
@@ -2136,7 +2200,7 @@ void Estimator::onlyLineOpt()
     double2vector();
     // std::cout << summary.FullReport()<<std::endl;
 
-    //f_manager.removeLineOutlier(Rs,Ps,tic,ric);
+    // f_manager.removeLineOutlier(Rs,Ps,tic,ric);
 }
 void Estimator::optimizationwithLine()
 {
@@ -2309,7 +2373,7 @@ void Estimator::optimizationwithLine()
     {
         MarginalizationInfo *marginalization_info = new MarginalizationInfo();
         vector2double();
-        int last_mar_cnt=0;
+        int last_mar_cnt = 0;
         if (last_marginalization_info && last_marginalization_info->valid)
         {
             vector<int> drop_set;
@@ -2326,7 +2390,7 @@ void Estimator::optimizationwithLine()
                                                                            drop_set);
             marginalization_info->addResidualBlockInfo(residual_block_info);
         }
-        int imu_mar_cnt=0;
+        int imu_mar_cnt = 0;
         if (USE_IMU)
         {
             if (pre_integrations[1]->sum_dt < 10.0)
@@ -2339,7 +2403,7 @@ void Estimator::optimizationwithLine()
                 imu_mar_cnt++;
             }
         }
-        int feature_mar_cnt=0;
+        int feature_mar_cnt = 0;
         {
             int feature_index = -1;
             for (auto &it_per_id : f_manager.feature)
@@ -2397,18 +2461,18 @@ void Estimator::optimizationwithLine()
                 }
             }
         }
-        int line_mar_cnt=0;
+        int line_mar_cnt = 0;
         if (0)
         {
             int linefeature_index = -1;
-            
+
             for (auto &it_per_id : f_manager.feature_line)
             {
                 it_per_id.used_num = it_per_id.feature_line_per_frame.size();                                                       // 已经被多少帧观测到， 这个已经在三角化那个函数里说了
                 if (!(it_per_id.used_num >= LINE_MIN_OBS && it_per_id.start_frame < WINDOW_SIZE - 2 && it_per_id.is_triangulation)) // 如果这个特征才被观测到，那就跳过。实际上这里为啥不直接用如果特征没有三角化这个条件。
                     continue;
                 ++linefeature_index;
-                
+
                 int imu_i = it_per_id.start_frame, imu_j = imu_i - 1;
                 if (imu_i != 0) // 如果这个特征的初始帧 不对应 要marg掉的最老帧0, 那就不用marg这个特征。即marg掉帧的时候，我们marg掉这帧上三角化的那些点
                     continue;
@@ -2428,8 +2492,8 @@ void Estimator::optimizationwithLine()
                     lineProjectionFactor *f = new lineProjectionFactor(obs); // 特征重投影误差
 
                     ResidualBlockInfo *residual_block_info = new ResidualBlockInfo(f, loss_function,
-                                                                                vector<double *>{para_Pose[imu_j], para_Ex_Pose[0], para_LineFeature[linefeature_index]},
-                                                                                drop_set); // vector<int>{0, 2} 表示要marg的参数下标，比如这里对应para_Pose[imu_i], para_Feature[feature_index]
+                                                                                   vector<double *>{para_Pose[imu_j], para_Ex_Pose[0], para_LineFeature[linefeature_index]},
+                                                                                   drop_set); // vector<int>{0, 2} 表示要marg的参数下标，比如这里对应para_Pose[imu_i], para_Feature[feature_index]
                     marginalization_info->addResidualBlockInfo(residual_block_info);
                     line_mar_cnt++;
                 }
@@ -2437,7 +2501,7 @@ void Estimator::optimizationwithLine()
             ROS_INFO("add marginalization_info lineProjectionFactor");
         }
         TicToc t_pre_margin;
-        ROS_INFO("begin marginalization_info preMarginalize   line_marginal_cnt%d %d %d",imu_mar_cnt,feature_mar_cnt,line_mar_cnt);
+        ROS_INFO("begin marginalization_info preMarginalize   line_marginal_cnt%d %d %d", imu_mar_cnt, feature_mar_cnt, line_mar_cnt);
         marginalization_info->preMarginalize();
         ROS_INFO("pre marginalization %f ms", t_pre_margin.toc());
 
@@ -2625,58 +2689,64 @@ void Estimator::double2vector2()
     f_manager.setLineOrth(lineorth_vec, Ps, Rs, tic, ric);
 }
 
-
-
-void Estimator::inputRange(int id,double t,double dis)
+void Estimator::inputRange(int id, double t, double dis)
 {
     mBuf.lock();
-    range_map[id][t]=dis;
+    range_map[id][t] = dis;
     mBuf.unlock();
 }
-bool Estimator::getRange(int id,double t,double &dis)
+bool Estimator::getRange(int id, double t, double &dis)
 {
-    //printf("query size--%d",range_map[id].size());
-    if(range_map[id].size()==0)return false;
-    //printf("%lf %lf %lf",range_map[id].begin()->first,t,range_map[id].rbegin()->first);
-    auto it=range_map[id].begin();
-    it=range_map[id].lower_bound(t);
-    if(it==range_map[id].end()){
-        if(range_map[id].rbegin()->first-t<=0.025){
-            dis=range_map[id].rbegin()->second;
+    // printf("query size--%d",range_map[id].size());
+    if (range_map[id].size() == 0)
+        return false;
+    // printf("query time %lf %lf %lf",range_map[id].begin()->first,t,range_map[id].rbegin()->first);
+    auto it = range_map[id].begin();
+    it = range_map[id].lower_bound(t);
+    if (it == range_map[id].end())
+    {
+        if (range_map[id].rbegin()->first - t <= 0.025)
+        {
+            dis = range_map[id].rbegin()->second;
             return true;
         }
-        else{
+        else
+        {
             return false;
         }
     }
-    else if(it==range_map[id].begin()){
-        if(t-range_map[id].rbegin()->first<=0.025){
-            dis=range_map[id].rbegin()->second;
+    else if (it == range_map[id].begin())
+    {
+        if (t - range_map[id].rbegin()->first <= 0.025)
+        {
+            dis = range_map[id].rbegin()->second;
             return true;
         }
-        else{
+        else
+        {
             return false;
         }
     }
-    else{
-        auto li=std::prev(it);
-        dis=li->second+(it->second-li->second)*(t-li->first)/(it->first-li->first);
-        //printf("int %lf",dis);
+    else
+    {
+        auto li = std::prev(it);
+        dis = li->second + (it->second - li->second) * (t - li->first) / (it->first - li->first);
+        // printf("int %lf",dis);
         return true;
     }
 }
 
-
 void Estimator::getPoseAndUWB(int &tot, std::map<double, int> &mp)
 {
+    //mRT.lock();
     tot = 0;
     for (int i = 0; i <= WINDOW_SIZE; i++)
     {
-        //printf("%d %d\n",i,pre_integrations[i]->last_t_buf.size());
+        // printf("%d %d\n",i,pre_integrations[i]->last_t_buf.size());
         int cnt = pre_integrations[i]->last_t_buf.size();
         int imu_frame_num; // min(cnt, imu_delta_fre);
         int shift_num;     //= cnt / imu_frame_num;
-        if (cnt == 0 || pre_integrations[i]->sum_dt > 3 || cnt > 300 || IMU_SAEM_FRE==0)
+        if (cnt == 0 || pre_integrations[i]->sum_dt > 3 || cnt > 300 || IMU_SAEM_FRE == 0)
         {
             imu_frame_num = 1;
             shift_num = 500;
@@ -2688,101 +2758,243 @@ void Estimator::getPoseAndUWB(int &tot, std::map<double, int> &mp)
         }
         double time = Headers[i];
         mp[time] = tot;
-        uwb_fre_time[tot]=time;
-        //eigenTarrarYaw(Eigen::Vector3d::Zero(),Eigen::Quaterniond::Identity(),para_uwb_local_world_Rt[tot]);
+        uwb_fre_time[tot] = time;
+        // eigenTarrarYaw(Eigen::Vector3d::Zero(),Eigen::Quaterniond::Identity(),para_uwb_local_world_Rt[tot]);
         tot++;
         int messageNumber = 1;
-        for (int k = 1; k < cnt && i>=1; k += shift_num)
+        for (int k = 1; k < cnt && i >= 1; k += shift_num)
         {
             messageNumber++;
-            time=pre_integrations[i]->last_t_buf[k];
+            time = pre_integrations[i]->last_t_buf[k];
             mp[time] = tot;
-            uwb_fre_time[tot]=time;
-            //eigenTarrarYaw(Eigen::Vector3d::Zero(),Eigen::Quaterniond::Identity(),para_uwb_local_world_Rt[tot]);
+            uwb_fre_time[tot] = time;
+            // eigenTarrarYaw(Eigen::Vector3d::Zero(),Eigen::Quaterniond::Identity(),para_uwb_local_world_Rt[tot]);
             tot++;
         }
     }
-    int range_success_num=0;
-    for(int uwbIdx=0;uwbIdx<=3;uwbIdx++)
+    int range_success_num = 0;
+    for (int uwbIdx = lowNum; uwbIdx <= uwbNum; uwbIdx++)
     {
-        for(int i=0;i<tot;i++)
+        for (int i = 0; i < tot; i++)
         {
-            uwb_can[uwbIdx][i]=getRange(uwbIdx,uwb_fre_time[i],uwb_mea[uwbIdx][i]);
-            range_success_num+=uwb_can[uwbIdx][i]==true;
+            uwb_can[uwbIdx][i] = getRange(uwbIdx, uwb_fre_time[i], uwb_mea[uwbIdx][i]);
+            range_success_num += uwb_can[uwbIdx][i] == true;
         }
     }
-    ROS_INFO("range_success_num=%d",range_success_num);
-    if(DEPEND==0)
+    ROS_INFO("range_success_num=%d", range_success_num);
+    if (DEPEND == 0)
     {
-        for(int j=0;j<tot;j++){
-            eigenTarrarYaw(Eigen::Vector3d::Zero(),Eigen::Quaterniond::Identity(),para_uwb_local_world_Rt[tot]);
+        for (int j = 0; j < tot; j++)
+        {
+            eigenTarrarYaw(Eigen::Vector3d::Zero(), Eigen::Quaterniond::Identity(), para_uwb_local_world_Rt[j]);
         }
-        to_world_rt_flag=1;
+        mat_2_world = OdometryVins(Eigen::Vector3d::Zero(), Eigen::Quaterniond::Identity(), 1.0);
+        to_world_rt_flag = 1;
     }
-    else if(DEPEND==1){
+    else if (DEPEND == 1)
+    {
         Eigen::Vector3d imups;
         Eigen::Matrix3d imurs;
-        if(to_world_rt_flag==0)
+        if (to_world_rt_flag == 0)
         {
-            for(int i=1;i<=WINDOW_SIZE;i++){
-                Eigen::Vector3d sp=Ps[i];
-                Eigen::Matrix3d sr=Rs[i];
-                bool flag=getRTformGT(AGENT_NUMBER, Headers[i], imups, imurs, sp, sr);
-                double yaw=Utility::R2ypr(imurs).x();
-                //ROS_INFO("imups and yaw %lf %lf %lf %lf",imups.x(),imups.y(),imups.z(),yaw);
-                Eigen::Quaterniond q=Eigen::Quaterniond{Utility::ypr2R(Vector3d(yaw,0,0))};
-                if(flag){
-                    for(int j=0;j<tot;j++){
-                        
-                        other_RT_map[AGENT_NUMBER][uwb_fre_time[j]]=OdometryVins(imups,q,uwb_fre_time[j]);
+            for (int i = 1; i <= WINDOW_SIZE; i++)
+            {
+                Eigen::Vector3d sp = Ps[i];
+                Eigen::Matrix3d sr = Rs[i];
+                bool flag = getRTformGT(AGENT_NUMBER, Headers[i], imups, imurs, sp, sr);
+                //double yaw = Utility::R2ypr(imurs).x();
+                // ROS_INFO("imups and yaw %lf %lf %lf %lf",imups.x(),imups.y(),imups.z(),yaw);
+                Eigen::Quaterniond q = Eigen::Quaterniond{imurs};
+                if (flag)
+                {
+                    for (int j = 0; j < tot; j++)
+                    {
+
+                        other_RT_map[AGENT_NUMBER][uwb_fre_time[j]] = OdometryVins(imups, q, uwb_fre_time[j]);
                     }
-                    for(int j=1;j<3000;j++){
-                        other_RT_map[AGENT_NUMBER][uwb_fre_time[tot-1]+j*0.02]=OdometryVins(imups,q,uwb_fre_time[tot-1]+j*0.02);
-                    }
-                    to_world_rt_flag=1;
+                    // for(int j=1;j<8000;j++){
+                    //     other_RT_map[AGENT_NUMBER][uwb_fre_time[tot-1]+j*0.02]=OdometryVins(imups,q,uwb_fre_time[tot-1]+j*0.02);
+                    // }
+                    to_world_rt_flag = 1;
+                    mat_2_world = OdometryVins(imups, q, Headers[i]);
+                    mat_2_world.getYawAndNorm();
                     break;
                 }
             }
-            if(to_world_rt_flag==1)
+            if (to_world_rt_flag == 1)
             {
-                for(int uwbIdx=0;uwbIdx<=3;uwbIdx++)
+                for (int uwbIdx = lowNum; uwbIdx <= uwbNum; uwbIdx++)
                 {
-                    //para_UWB_bias[uwbIdx][0]=0;
-                    //para_UWB_bias[uwbIdx][0]=(uwb_mea[uwbIdx][0]/2)*0.1;
+                    // para_UWB_bias[uwbIdx][0]=0;
+                    para_UWB_bias[uwbIdx][0] = (uwb_mea[uwbIdx][0] / 1.8) * 0.1;
                 }
             }
         }
-        if(to_world_rt_flag==1){
-            for(int i=0;i<tot;i++)
-            {
-                bool flag=getRTformMap(AGENT_NUMBER,uwb_fre_time[i], imups, imurs);
-                if(flag){
-                    //ROS_INFO("query calc %lf %lf %lf %lf",uwb_fre_time[i],imups.x(),imups.y(),imups.z());
-                    eigenTarrarYaw(imups, imurs, para_uwb_local_world_Rt[i]); 
-                    //if(i<10)
-                    // ROS_INFO("query para_uwb_local_world RT 
-                    // %lf %lf %lf %lf",para_uwb_local_world_Rt[i][0],
-                    // para_uwb_local_world_Rt[i][1],para_uwb_local_world_Rt[i][2],para_uwb_local_world_Rt[i][3]);
-                }
-                for(int uwbIdx=0;uwbIdx<=3;uwbIdx++)
-                uwb_can[uwbIdx][i]&=flag;
-            }
-            
-        }
-        else{
-            memset(uwb_can,0,sizeof(uwb_can));
-        }
-        range_success_num=0;
-        for(int i=0;i<tot;i++)
+        if (to_world_rt_flag == 1)
         {
-            for(int uwbIdx=0;uwbIdx<=3;uwbIdx++)
-            range_success_num+=uwb_can[uwbIdx][i]==true;
+            for (int i = 0; i < tot; i++)
+            {
+                bool flag = true;
+                imups = mat_2_world.Ps;
+                imurs = mat_2_world.Rs;
+                // getRTformMap(AGENT_NUMBER,uwb_fre_time[i], imups, imurs);
+                if (flag)
+                {
+                    // ROS_INFO("query calc %lf %lf %lf %lf",uwb_fre_time[i],imups.x(),imups.y(),imups.z());
+                    eigenTarrarYaw(imups, imurs, para_uwb_local_world_Rt[i]);
+                    // if(i<10)
+                    //  ROS_INFO("query para_uwb_local_world RT
+                    //  %lf %lf %lf %lf",para_uwb_local_world_Rt[i][0],
+                    //  para_uwb_local_world_Rt[i][1],para_uwb_local_world_Rt[i][2],para_uwb_local_world_Rt[i][3]);
+                }
+                for (int uwbIdx = lowNum; uwbIdx <= uwbNum; uwbIdx++)
+                    uwb_can[uwbIdx][i] &= flag;
+            }
         }
-        ROS_INFO("range_success_num second 2 =%d",range_success_num);
-    } 
+        else
+        {
+            memset(uwb_can, 0, sizeof(uwb_can));
+        }
+    }
+    //mRT.unlock();
 }
 
+void Estimator::getPoseAndOtherAgent(int &tot, std::map<double, int> &mp)
+{
+    //mRT.lock();
+    if (uwb_length > 0 && uwb_2_index.size() == uwb_length)
+    {
+        tot = uwb_length;
+        mp = uwb_2_index;
+        for (int i = 0; i < tot; i++)
+        {
+            kin_fre_time[i] = uwb_fre_time[i];
+        }
+    }
+    else
+    {
+        tot = 0;
+        for (int i = 0; i <= WINDOW_SIZE; i++)
+        {
+            // printf("%d %d\n",i,pre_integrations[i]->last_t_buf.size());
+            int cnt = pre_integrations[i]->last_t_buf.size();
+            int imu_frame_num; // min(cnt, imu_delta_fre);
+            int shift_num;     //= cnt / imu_frame_num;
+            if (cnt == 0 || pre_integrations[i]->sum_dt > 3 || cnt > 300 || IMU_SAEM_FRE == 0)
+            {
+                imu_frame_num = 1;
+                shift_num = 500;
+            }
+            else
+            {
+                imu_frame_num = min(cnt, imu_delta_fre) + 1;
+                shift_num = cnt / imu_frame_num;
+            }
+            double time = Headers[i];
+            mp[time] = tot;
+            kin_fre_time[tot] = time;
+            tot++;
+            int messageNumber = 1;
+            for (int k = 1; k < cnt && i >= 1; k += shift_num)
+            {
+                messageNumber++;
+                time = pre_integrations[i]->last_t_buf[k];
+                mp[time] = tot;
+                kin_fre_time[tot] = time;
+                tot++;
+            }
+        }
+    }
+    Eigen::Vector3d imups;
+    Eigen::Matrix3d imurs;
+    for (int i = 0; i < tot; i++)
+    {
+        OdometryVins query;
+        for (int j = 1; j <= 3; j++)
+        {
+            //cout<<"AGENT : "<<AGENT_NUMBER<<" "<<j<<" "<<other_pose_map[j].size();
+            kin_can[j][i] = OdometryVins::queryOdometryMap(other_pose_map[j], kin_fre_time[i], query, 0.05);
+            if(kin_can[j][i])
+            {
+                kin_mea_ps[j][i] = query.Ps;
+                //cout<<"AGENT : "<<AGENT_NUMBER<<" "<<j<<" "<<i<<" "<<kin_mea_ps[j][i]<<"  "<<endl;
+                kin_mea_qs[j][i] = query.Rs;
+                kin_mea_vs[j][i] = query.Vs;
+            }
+        }
+        kin_can[0][i]=OdometryVins::queryOdometryMap(other_pose_map[0], kin_fre_time[i], query, 0.05);
+        para_imu_z_val[i][0]=query.Rs.toRotationMatrix()(2,2);
+    }
+    if (to_world_rt_flag == 1)
+    {
+        imups = mat_2_world.Ps;
+        imurs = mat_2_world.Rs;
+        for (int i = 0; i < tot; i++)
+        {
+            for (int j = 1; j <= 3; j++)
+            {
+                if (j == AGENT_NUMBER)
+                    eigenTarrarYaw(imups, imurs, para_kin_local_world_Rt[AGENT_NUMBER][i]);
+                else
+                    eigenTarrarYaw(Eigen::Vector3d::Zero(), Eigen::Quaterniond::Identity(), para_kin_local_world_Rt[j][i]);
+            }
+        }
+    }
+    else
+    {
+        if (DEPEND == 0)
+        {
+            for (int i = 0; i < tot; i++)
+                for (int j = 1; j <= 3; j++)
+                    eigenTarrarYaw(Eigen::Vector3d::Zero(), Eigen::Quaterniond::Identity(), para_kin_local_world_Rt[j][i]);
+            mat_2_world = OdometryVins(Eigen::Vector3d::Zero(), Eigen::Quaterniond::Identity(), 1.0);
+            to_world_rt_flag = 1;
+        }
+        else if (DEPEND == 1)
+        {
+            Eigen::Vector3d imups;
+            Eigen::Matrix3d imurs;
+            if (to_world_rt_flag == 0)
+            {
+                for (int i = 1; i <= WINDOW_SIZE; i++)
+                {
+                    Eigen::Vector3d sp = Ps[i];
+                    Eigen::Matrix3d sr = Rs[i];
+                    bool flag = getRTformGT(AGENT_NUMBER, Headers[i], imups, imurs, sp, sr);
+                    //double yaw = Utility::R2ypr(imurs).x();
+                    Eigen::Quaterniond q = Eigen::Quaterniond{imurs};
+                    if (flag)
+                    {
+                        for (int j = 0; j < tot; j++)
+                        {
 
+                            other_RT_map[AGENT_NUMBER][kin_fre_time[j]] = OdometryVins(imups, q, kin_fre_time[j]);
+                        }
+                        to_world_rt_flag = 1;
+                        mat_2_world = OdometryVins(imups, q, Headers[i]);
+                        mat_2_world.getYawAndNorm();
+                        break;
+                    }
+                }
+            }
+        }
+        if (to_world_rt_flag == 1)
+        {
+            imups = mat_2_world.Ps;
+            imurs = mat_2_world.Rs;
+            for (int i = 0; i < tot; i++)
+            {
+                for (int j = 1; j <= 3; j++)
+                    eigenTarrarYaw(imups, imurs, para_kin_local_world_Rt[j][i]);
+            }
+        }
+        else
+        {
+
+        }
+    }
+    //mRT.unlock();
+}
 void Estimator::eigenTarrarYaw(Eigen::Vector3d x, Eigen::Quaterniond q, double val[])
 {
     val[0] = x.x();
@@ -2790,11 +3002,10 @@ void Estimator::eigenTarrarYaw(Eigen::Vector3d x, Eigen::Quaterniond q, double v
     val[2] = x.z();
     val[3] = Utility::R2ypr(q.toRotationMatrix()).x();
 }
-
-void Estimator::arrayTeigenYaw(double val[],Eigen::Vector3d &x,Eigen::Quaterniond &q)
+void Estimator::arrayTeigenYaw(double val[], Eigen::Vector3d &x, Eigen::Quaterniond &q)
 {
     x = Eigen::Vector3d(val[0], val[1], val[2]);
-    q = Eigen::Quaterniond{Utility::ypr2R(Eigen::Vector3d(val[3],0,0))};
+    q = Eigen::Quaterniond{Utility::ypr2R(Eigen::Vector3d(val[3], 0, 0))};
     q.normalize();
 }
 
@@ -2806,50 +3017,59 @@ void Estimator::eigenTarrarYaw(Eigen::Vector3d x, Eigen::Matrix3d q, double val[
     val[3] = Utility::R2ypr(q).x();
 }
 
-void Estimator::arrayTeigenYaw(double val[],Eigen::Vector3d &x,Eigen::Matrix3d &q)
+void Estimator::arrayTeigenYaw(double val[], Eigen::Vector3d &x, Eigen::Matrix3d &q)
 {
     x = Eigen::Vector3d(val[0], val[1], val[2]);
-    q = Utility::ypr2R(Eigen::Vector3d(val[3],0,0));
+    q = Utility::ypr2R(Eigen::Vector3d(val[3], 0, 0));
     q.normalize();
 }
 
-void Estimator::inputGT(int id,OdometryVins tmp)
+void Estimator::inputGT(int id, OdometryVins tmp)
 {
     mBuf.lock();
-    gt_map[id][tmp.time]=tmp;
+    gt_map[id][tmp.time] = tmp;
     mBuf.unlock();
 }
 
+void Estimator::inputAnchor(int id, OdometryVins tmp)
+{
+    mBuf.lock();
+    for (int i = 0; i <= 2; i++)
+    {
+        para_UWB_anchor[id][i] = tmp.Ps(i);
+    }
+    mBuf.unlock();
+}
 
 bool Estimator::getRTformGT(int id, double time, Eigen::Vector3d &p, Eigen::Matrix3d &q, Eigen::Vector3d sp, Eigen::Matrix3d sq)
 {
     mRT.lock();
     OdometryVins tmp;
-    bool flag=OdometryVins::queryOdometryMap(gt_map[id],time,tmp,0.25);
-    if(flag==false){
+    bool flag = OdometryVins::queryOdometryMap(gt_map[id], time, tmp, 0.25);
+    if (flag == false)
+    {
         mRT.unlock();
         return flag;
     }
-    //ROS_INFO("query GT %lf %lf %lf %lf %lf %lf %lf",tmp.Ps.x(),tmp.Ps.y(),tmp.Ps.z(),tmp.Rs.x(),tmp.Rs.y(),tmp.Rs.z(),tmp.Rs.w());
+    // ROS_INFO("query GT %lf %lf %lf %lf %lf %lf %lf",tmp.Ps.x(),tmp.Ps.y(),tmp.Ps.z(),tmp.Rs.x(),tmp.Rs.y(),tmp.Rs.z(),tmp.Rs.w());
 
     Eigen::Quaterniond sr{sq};
-    //ROS_INFO("query SP %lf %lf %lf %lf %lf %lf %lf",sp.x(),sp.y(),sp.z(),sr.x(),sr.y(),sr.z(),sr.w());
+    // ROS_INFO("query SP %lf %lf %lf %lf %lf %lf %lf",sp.x(),sp.y(),sp.z(),sr.x(),sr.y(),sr.z(),sr.w());
     Eigen::Affine3d affine;
     affine = Eigen::Translation3d(sp) * sr;
     Eigen::Matrix4d matrix = affine.matrix();
     Eigen::Affine3d affine2;
-    affine2 = Eigen::Translation3d(tmp.Ps)*tmp.Rs;
+    affine2 = Eigen::Translation3d(tmp.Ps) * tmp.Rs;
     Eigen::Matrix4d matrix2 = affine2.matrix();
 
-
-    Eigen::Matrix4d matrix3 = matrix2*matrix.inverse();
+    Eigen::Matrix4d matrix3 = matrix2 * matrix.inverse();
 
     Eigen::Affine3d affine3(matrix3);
     q = (Eigen::Quaterniond(affine3.rotation())).toRotationMatrix();
     p = affine3.translation();
-    double yaw=Utility::R2ypr(q).x();
-    q=Utility::ypr2R(Eigen::Vector3d(yaw,0,0));
-    //ROS_INFO("query calc %lf %lf %lf %lf ",p.x(),p.y(),p.z(),yaw);
+    double yaw = Utility::R2ypr(q).x();
+    q = Utility::ypr2R(Eigen::Vector3d(yaw, 0, 0));
+    // ROS_INFO("query calc %lf %lf %lf %lf ",p.x(),p.y(),p.z(),yaw);
     mRT.unlock();
     return true;
 }
@@ -2857,53 +3077,65 @@ bool Estimator::getRTformMap(int id, double time, Eigen::Vector3d &p, Eigen::Mat
 {
     mRT.lock();
     OdometryVins tmp;
-    bool flag=OdometryVins::queryOdometryMap(other_RT_map[id],time,tmp,0.5);
-    if(flag){
-        p=tmp.Ps;
-        q=tmp.Rs.toRotationMatrix();
+    bool flag = OdometryVins::queryOdometryMap(other_RT_map[id], time, tmp, 0.5);
+    if (flag)
+    {
+        p = tmp.Ps;
+        q = tmp.Rs.toRotationMatrix();
     }
     mRT.unlock();
     return flag;
 }
 void Estimator::save_rt()
 {
-    for(int i=0;i<uwb_length;i++){
-        Eigen::Vector3d p;
-        Eigen::Quaterniond q;
-        arrayTeigenYaw(para_uwb_local_world_Rt[i],p,q);
-        double yaw=Utility::R2ypr(q.toRotationMatrix()).x();
-        q=Eigen::Quaterniond{Utility::ypr2R(Vector3d(yaw,0,0))};
-        other_RT_map[AGENT_NUMBER][uwb_fre_time[i]]=OdometryVins(p,q,uwb_fre_time[i]);
-    }
+    // for(int i=0;i<uwb_length;i++){
+    //     Eigen::Vector3d p;
+    //     Eigen::Quaterniond q;
+    //     arrayTeigenYaw(para_uwb_local_world_Rt[i],p,q);
+    //     double yaw=Utility::R2ypr(q.toRotationMatrix()).x();
+    //     q=Eigen::Quaterniond{Utility::ypr2R(Vector3d(yaw,0,0))};
+    //     other_RT_map[AGENT_NUMBER][uwb_fre_time[i]]=OdometryVins(p,q,uwb_fre_time[i]);
+    // }
 }
 void Estimator::clearMap()
 {
-    mBuf.lock();
-    for(int i=0;i<3;i++)
+    mRT.lock();
+    for (int i = 1; i <= 3; i++)
     {
-        while(other_RT_map[i].size()>100&&other_RT_map[i].begin()->first-Headers[0]<-10)
+        while (other_RT_map[i].size() > 100 && other_RT_map[i].begin()->first - Headers[0] < -0.05)
         {
             other_RT_map[i].erase(other_RT_map[i].begin());
         }
-        while(gt_map[i].size()>100&&gt_map[i].begin()->first-Headers[0]<-10)
+        while (other_pose_map[i].size() > 100 && other_pose_map[i].begin()->first - Headers[0] < -0.05)
+        {
+            other_pose_map[i].erase(other_pose_map[i].begin());
+        }
+        while (gt_map[i].size() > 100 && gt_map[i].begin()->first - Headers[0] < -0.05)
         {
             gt_map[i].erase(gt_map[i].begin());
         }
     }
-    for(int i=0;i<4;i++)
+    for (int i = 0; i < 4; i++)
     {
-        
-        while(range_map[i].size()>100&&range_map[i].begin()->first-Headers[0]<-10)
+
+        while (range_map[i].size() > 100 && range_map[i].begin()->first - Headers[0] < -0.05)
         {
             range_map[i].erase(range_map[i].begin());
         }
     }
-    mBuf.unlock();
+    while (other_pose_map[0].size() > 100 && other_pose_map[0].begin()->first - Headers[0] < -0.05)
+    {
+            other_pose_map[0].erase(other_pose_map[0].begin());
+    }
+    mRT.unlock();
 }
 
-void Estimator::inputOtherPose(int id,OdometryVins tmp)
+void Estimator::inputOtherPose(int id, OdometryVins tmp)
 {
-    mBuf.lock();
-    other_pose_map[id][tmp.time]=tmp;
-    mBuf.unlock();
+    mRT.lock();
+    
+    //cout<<"Agent_number"<<AGENT_NUMBER<<" "<<id<<other_pose_map[id].size();
+    //if(id==2)
+    other_pose_map[id][tmp.time] = tmp;
+    mRT.unlock();
 }

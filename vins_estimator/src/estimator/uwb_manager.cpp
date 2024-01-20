@@ -46,16 +46,8 @@ UWBManager::UWBManager(int _uwb_num,vector<Eigen::Vector3d> _uwb_loc)
     uwb_num=_uwb_num;
     uwb_loc=_uwb_loc;
     uwb_range_window=vector<deque<UWBMeasurement>>(uwb_num+1,deque<UWBMeasurement>());
-    //uwb_range_window.resize(uwb_num);
-    //uwb_range_sol_data.resize(uwb_num);
     uwb_range_sol_data=vector<vector<UWBMeasurement>>(uwb_num+1,vector<UWBMeasurement>(0));
     clearState();
-    // for(int i=0;i<uwb_num;i++){
-    //     vector<UWBMeasurement>tmp;
-    //     uwb_range_raw_data.push_back(
-    //         vector<>
-    //     )
-    // }
 }
 void UWBManager::addOdometryMeasurements(Eigen::Vector3d Ps,Eigen::Vector3d Vs,Eigen::Vector3d Ws,Eigen::Quaterniond Rs,double time)
 {
@@ -63,9 +55,9 @@ void UWBManager::addOdometryMeasurements(Eigen::Vector3d Ps,Eigen::Vector3d Vs,E
 }
 void UWBManager::clearState()
 {
-    sigma=0.1;
+    sigma=0.15;
     sample=15;
-    RANGE_SIZE=7;
+    RANGE_SIZE=8;
     OFFSET_THRESH=0.04;
     publish_smooth_range=true;
     bf=new ButterworthLowPassFilter(5.0,50.0,2);
@@ -114,7 +106,7 @@ bool UWBManager::addUWBMeasurements(int idx,double time,double range){
     else{
         if(range!=uwb_range_sol_data[idx].back().range){
             OdometryVins x1,x2;
-            bool q1,q2;
+            bool q1=false,q2=false;
             //q1=query(x1,uwb_range_window[idx].back().time);
             //q2=query(x2,time);
             //ROS_INFO("new uwb data");
@@ -166,7 +158,7 @@ bool UWBManager::addUWBMeasurements(int idx,double time,double range){
             return res;
         }
         else{
-            printf("%d %lf %lf",idx,time,range);
+            //printf("%d %lf %lf",idx,time,range);
             return false;
         }
         

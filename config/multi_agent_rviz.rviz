@@ -125,7 +125,7 @@ Visualization Manager:
           Radius: 0.0299999993
           Shaft Diameter: 0.100000001
           Shaft Length: 0.100000001
-          Topic: /ag1/path
+          Topic: /ag1/vins_estimator/path
           Unreliable: false
           Value: true
         - Class: rviz/MarkerArray
@@ -190,7 +190,7 @@ Visualization Manager:
           Radius: 0.0299999993
           Shaft Diameter: 0.100000001
           Shaft Length: 0.100000001
-          Topic: /ag2/path
+          Topic: /ag2/vins_estimator/path
           Unreliable: false
           Value: true
         - Class: rviz/MarkerArray
@@ -255,7 +255,7 @@ Visualization Manager:
           Radius: 0.0299999993
           Shaft Diameter: 0.100000001
           Shaft Length: 0.100000001
-          Topic: /ag3/path
+          Topic: /ag3/vins_estimator/path
           Unreliable: false
           Value: true
         - Class: rviz/MarkerArray
