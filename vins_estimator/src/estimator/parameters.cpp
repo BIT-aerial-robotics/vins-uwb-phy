@@ -207,7 +207,7 @@ void readParameters(std::string config_file)
         ESTIMATE_TD = 0;
         printf("no imu, fix extrinsic param; no time offset calibration\n");
     }
-    USE_KIN=0;
+    USE_KIN=1;
     USELINE=0;
     USE_UWB=1;
     imu_delta_fre=3;
