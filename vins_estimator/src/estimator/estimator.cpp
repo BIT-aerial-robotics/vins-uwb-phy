@@ -43,6 +43,9 @@ Estimator::Estimator() : f_manager{Rs}
     para_hinge[0]=HINGE(0);
     para_hinge[1]=HINGE(1);
     para_hinge[2]=HINGE(2);
+    para_tag[0]=HINGE(0);
+    para_tag[1]=HINGE(1);
+    para_tag[2]=0.03;
     para_length[0]=0.841;
 }
 
@@ -1045,12 +1048,24 @@ void Estimator::double2vector()
         for (int i = 0; i <= WINDOW_SIZE; i++)
         {
 
-            Rs[i] = rot_diff * Quaterniond(para_Pose[i][6], para_Pose[i][3], para_Pose[i][4], para_Pose[i][5]).normalized().toRotationMatrix();
+            
+            if(USE_UWB)
+            {
+                Rs[i] = Quaterniond(para_Pose[i][6], para_Pose[i][3], para_Pose[i][4], para_Pose[i][5]).normalized().toRotationMatrix();
+                Ps[i] = Vector3d(para_Pose[i][0],
+                                            para_Pose[i][1],
+                                            para_Pose[i][2]);
+            }
+            else{
+                Rs[i] = rot_diff * Quaterniond(para_Pose[i][6], para_Pose[i][3], para_Pose[i][4], para_Pose[i][5]).normalized().toRotationMatrix();
 
-            Ps[i] = rot_diff * Vector3d(para_Pose[i][0] - para_Pose[0][0],
+                Ps[i] = rot_diff * Vector3d(para_Pose[i][0] - para_Pose[0][0],
                                         para_Pose[i][1] - para_Pose[0][1],
-                                        para_Pose[i][2] - para_Pose[0][2]) +
-                    origin_P0;
+                                        para_Pose[i][2] - para_Pose[0][2]) +origin_P0;
+            }
+
+            
+                    // origin_P0;
 
             Vs[i] = rot_diff * Vector3d(para_SpeedBias[i][0],
                                         para_SpeedBias[i][1],
@@ -1277,6 +1292,10 @@ void Estimator::optimization()
     // ROS_INFO("USE_UWB ==== %d \n",USE_UWB);
     if (USE_UWB)
     {
+        
+
+        problem.AddParameterBlock(para_tag,3);
+        problem.SetParameterBlockConstant(para_tag);
         for (int uwbIdx = 0; uwbIdx <= 3; uwbIdx++)
         {
             problem.AddParameterBlock(para_UWB_anchor[uwbIdx], 3);
@@ -1288,11 +1307,11 @@ void Estimator::optimization()
             //         NULL,para_UWB_Anchor[uwbIdx]);
 
             problem.SetParameterBlockConstant(para_UWB_anchor[uwbIdx]);
-            // problem.SetParameterBlockConstant(para_UWB_bias[uwbIdx]);
-            UWBBiasFactor *conxt = new UWBBiasFactor(para_UWB_bias[uwbIdx][0], 0.008);
-            problem.AddResidualBlock(
-                new ceres::AutoDiffCostFunction<UWBBiasFactor, 1, 1>(conxt),
-                NULL, para_UWB_bias[uwbIdx]);
+            problem.SetParameterBlockConstant(para_UWB_bias[uwbIdx]);
+            // UWBBiasFactor *conxt = new UWBBiasFactor(para_UWB_bias[uwbIdx][0], 0.008);
+            // problem.AddResidualBlock(
+            //     new ceres::AutoDiffCostFunction<UWBBiasFactor, 1, 1>(conxt),
+            //     NULL, para_UWB_bias[uwbIdx]);
         }
         if (frame_sol_cnt >= 5)
         {
@@ -1324,9 +1343,9 @@ void Estimator::optimization()
                                 //arrayTeigenYaw(para_uwb_local_world_Rt[nxt], sp1, sr1);
                                 UwbFactor *conxt = new UwbFactor(sp1, sr1.toRotationMatrix(), uwb_mea[uwbIdx][nxt], 0.04);
                                 problem.AddResidualBlock(
-                                    new ceres::AutoDiffCostFunction<UwbFactor, 1, 7, 3, 1>(conxt),
+                                    new ceres::AutoDiffCostFunction<UwbFactor, 1, 7, 3, 1,3>(conxt),
                                     NULL,
-                                    para_Pose[i], para_UWB_anchor[uwbIdx], para_UWB_bias[uwbIdx]);
+                                    para_Pose[i], para_UWB_anchor[uwbIdx], para_UWB_bias[uwbIdx],para_tag);
 
                                 // Eigen::Vector3d x(para_Pose[i]);
                                 // x=sr1.toRotationMatrix()*x+sp1;
@@ -1370,9 +1389,9 @@ void Estimator::optimization()
                                 UWBFactor_delta *conxt = new UWBFactor_delta(eworldP, eworldR.toRotationMatrix(),
                                                                              delta_p, delta_q, uwb_fre_time[nxt] - Headers[i - 1], uwb_mea[uwbIdx][nxt], 0.04);
                                 problem.AddResidualBlock(
-                                    new ceres::AutoDiffCostFunction<UWBFactor_delta, 1, 7, 9, 3, 1>(conxt),
+                                    new ceres::AutoDiffCostFunction<UWBFactor_delta, 1, 7, 9, 3, 1,3>(conxt),
                                     NULL,
-                                    para_Pose[i - 1], para_SpeedBias[i - 1], para_UWB_anchor[uwbIdx], para_UWB_bias[uwbIdx]);
+                                    para_Pose[i - 1], para_SpeedBias[i - 1], para_UWB_anchor[uwbIdx], para_UWB_bias[uwbIdx],para_tag);
                                 resNum += 1;
                             }
                         }
@@ -1380,6 +1399,48 @@ void Estimator::optimization()
                 }
             }
             cout << "uwb_length:" << uwb_length << "  " << uwb_2_index.size() << "  " << resNum << endl;
+        }
+   
+        double time = Headers[0];
+        auto iter = uwb_2_index.lower_bound(time);
+        int flag_fir=0;
+        if (iter != uwb_2_index.end() && abs(time - iter->first) <= 0.02)
+        {
+            int nxt = iter->second;
+            int num=0;
+            double alldis=0;
+            for (int uwbIdx = lowNum; uwbIdx <= uwbNum; uwbIdx++)
+            {
+
+                if (uwb_can[uwbIdx][nxt])
+                {
+                    Eigen::Vector3d sp1=mat_2_world.Ps, sp2(para_UWB_anchor[uwbIdx]),sp3=Ps[0],dis_vec;
+                    Eigen::Quaterniond sr1=mat_2_world.Rs, sr3{Rs[0]};
+                    sp3+=sr3*Eigen::Vector3d(para_tag);
+                    sp3=sr1*sp3+sp1;
+                    dis_vec=sp3-sp2;
+                    double dis=dis_vec.norm()-(uwb_mea[uwbIdx][nxt]-para_UWB_bias[uwbIdx][0]);
+                    alldis+=dis;
+                    num+=1;
+                }
+            }
+            // if(num>0){
+            //     alldis/=num;
+            //     kinFactor_old *old_fir = new kinFactor_old(para_Pose[0], 0.005+alldis,0.001+alldis);
+            //     problem.AddResidualBlock(
+            //             new ceres::AutoDiffCostFunction<kinFactor_old, 7, 7>(old_fir),
+            //             NULL,
+            //             para_Pose[0]);
+            //     flag_fir=1;
+            // }
+            
+        }
+        if(flag_fir==0){
+            kinFactor_old *old_fir = new kinFactor_old(para_Pose[0], 0.0005,0.0001);
+            problem.AddResidualBlock(
+            new ceres::AutoDiffCostFunction<kinFactor_old, 7, 7>(old_fir),
+            NULL,
+            para_Pose[0]);
         }
     }
     if (USE_KIN)
@@ -1421,7 +1482,7 @@ void Estimator::optimization()
                             if(AGENT_NUMBER!=j&&kin_can[j][nxt]){
                                 kinFactor_connect_4dof_tight *conxt = new kinFactor_connect_4dof_tight(mat_2_world.Ps,
                                 mat_2_world.Rs.toRotationMatrix(),
-                                kin_mea_ps[j][nxt],kin_mea_qs[j][nxt].toRotationMatrix(),0.05);
+                                kin_mea_ps[j][nxt],kin_mea_qs[j][nxt].toRotationMatrix(),0.04);
                                 problem.AddResidualBlock(
                                     new ceres::AutoDiffCostFunction<kinFactor_connect_4dof_tight, 1, 7, 4, 3, 1>(conxt),
                                     NULL,
@@ -2825,8 +2886,8 @@ void Estimator::getPoseAndUWB(int &tot, std::map<double, int> &mp)
             {
                 for (int uwbIdx = lowNum; uwbIdx <= uwbNum; uwbIdx++)
                 {
-                    // para_UWB_bias[uwbIdx][0]=0;
-                    para_UWB_bias[uwbIdx][0] = (uwb_mea[uwbIdx][0] / 1.8) * 0.1;
+                    para_UWB_bias[uwbIdx][0]=0;
+                    //para_UWB_bias[uwbIdx][0] = (uwb_mea[uwbIdx][0] / 1.8) * 0.1;
                 }
             }
         }
@@ -3045,7 +3106,7 @@ bool Estimator::getRTformGT(int id, double time, Eigen::Vector3d &p, Eigen::Matr
 {
     mRT.lock();
     OdometryVins tmp;
-    bool flag = OdometryVins::queryOdometryMap(gt_map[id], time, tmp, 0.25);
+    bool flag = OdometryVins::queryOdometryMap(gt_map[id], time, tmp, 0.08);
     if (flag == false)
     {
         mRT.unlock();

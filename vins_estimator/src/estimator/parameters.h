@@ -82,6 +82,7 @@ extern int uwbNum,lowNum;
 extern int FLIGHT_MODE;
 extern Eigen::Vector3d HINGE;
 extern double KIN_LENGTH;
+extern int SIM_UWB;
 void readParameters(std::string config_file);
 
 enum SIZE_PARAMETERIZATION

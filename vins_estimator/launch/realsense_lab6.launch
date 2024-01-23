@@ -14,8 +14,8 @@
     <arg name="gt" default = "/home/f404/datacol/gt/2023-03-12-19-36.bag" />
     <node pkg="rosbag" type="play" name="playergt" output="log" args="$(arg gt)" /> -->
     
-    <arg name="sequence_1" default = "/home/f404/datacol/realsense/2024-01-17-14-01-27.bag" />
-    <arg name="sequence_uwb" default = "/home/f404/datacol/realsense/uwb/2024-01-17-14-01-27.bag" />
+    <arg name="sequence_1" default = "/home/f404/datacol/realsense/2024-01-17-14-49-23.bag" />
+    <arg name="sequence_uwb" default = "/home/f404/datacol/realsense/uwb/2024-01-17-14-49-19.bag" />
     <group ns="ag1">
         <node name="vins_estimator" pkg="vins" type="vins_node" output="screen" args="/home/f404/catkin_tmp/src/VINS-Fusion/config/realsense_d435i_1_1944/realsense_stereo_imu_config.yaml"/>
     </group>
@@ -27,10 +27,10 @@
     </group>
 
     <node pkg="rosbag" type="play" name="player" output="log" 
-    args="$(arg sequence_1) -s 5 -r 0.6
+    args="$(arg sequence_1) -s 4 -r 0.6
     " />
     <node pkg="rosbag" type="play" name="player2" output="log" 
-    args="$(arg sequence_uwb) -s 6 -r 0.6
+    args="$(arg sequence_uwb) -s 8 -r 0.6
     " />
     <!-- <node name="rvizvisualisation" pkg="rviz" type="rviz" output="log" args="-d /home/f404/catkin_ws/src/VINS-Fusion/config/multi_agent_rviz.rviz" /> -->
     <node pkg="rosbag" type="record" name="bag_record" output="log" args="
@@ -43,7 +43,6 @@
     /vrpn_client_node/anchor_Marker2/pose
     /vrpn_client_node/anchor_Marker3/pose
     /vrpn_client_node/anchor_Marker4/pose
-    /ag1/est_mark /ag2/est_mark /ag3/est_mark
     /u0/nlink_linktrack_nodeframe2
     /u1/nlink_linktrack_nodeframe2
     /u2/nlink_linktrack_nodeframe2

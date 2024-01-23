@@ -55,7 +55,7 @@ struct UwbFactor
     distance=_distance;
   }
   template <typename T>
-  bool operator()(const T*  pi,const T* pj,const T* b,T* residuals) const
+  bool operator()(const T*  pi,const T* pj,const T* b,const T*tag,T* residuals) const
   {
     
     Eigen::Matrix<T, 3, 1> Pi[2],WP[2],OT,dis;
@@ -69,7 +69,7 @@ struct UwbFactor
     for(int i=0;i<=2;i++)for(int j=0;j<=2;j++)WR[0](i,j)=(T)wr[0](i,j);
     Eigen::Quaternion<T> Qi(pi[6],pi[3],pi[4],pi[5]);
     //Pi[0]+=Qi.toRotationMatrix()*Eigen::Matrix<T, 3, 1>((T)0,(T)0,(T)0);
-    Pi[0]=WR[0]*Pi[0]+WP[0];
+    Pi[0]=WR[0]*(Pi[0]+Qi*Eigen::Matrix<T,3,1>(tag))+WP[0];
     
     dis=Pi[1]-Pi[0];
     
@@ -100,7 +100,7 @@ struct UWBFactor_delta
     dt=_dt;
   }
   template <typename T>
-  bool operator()(const T*  pi,const T* vi,const T* pj,const T* b,T* residuals) const
+  bool operator()(const T*  pi,const T* vi,const T* pj,const T* b,const T* tag,T* residuals) const
   {
     
     Eigen::Matrix<T, 3, 1> Pi[2],WP[2],OT,dis,UP,Vi,Uv;
@@ -122,7 +122,7 @@ struct UWBFactor_delta
     Qi=UR*Qi;
     Qi.normalize();
     //Pi[0]+=Qi.toRotationMatrix()*Eigen::Matrix<T, 3, 1>((T)0,(T)0,(T)0.00);
-    Pi[0]=WR[0]*Pi[0]+WP[0];
+    Pi[0]=WR[0]*(Pi[0]+Qi*Eigen::Matrix<T,3,1>(tag))+WP[0];
     
     dis=Pi[1]-Pi[0];
     

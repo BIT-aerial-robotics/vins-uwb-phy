@@ -241,6 +241,7 @@ class Estimator
 
 
     double para_hinge[3];
+    double para_tag[3];
     double para_length[1];
     
 };

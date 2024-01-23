@@ -65,6 +65,44 @@ struct kinFactor_bet_4dof_1
   Eigen::Matrix<double,4,1> info;
 };
 
+
+struct kinFactor_old
+{
+  kinFactor_old(double POSEI[], double _info1,double _info2)
+  {
+    di=Eigen::Vector3d(POSEI[0],POSEI[1],POSEI[2]);
+    qi=Eigen::Quaterniond(POSEI[6],POSEI[3],POSEI[4],POSEI[5]);
+    info1=_info1;
+    info2=_info2;
+  }
+  template <typename T>
+  bool operator()(const T*  pi,T* residuals) const
+  {
+    Eigen::Matrix<T, 3, 1> Pi,Pj,E;
+    for(int i=0;i<3;i++)
+    {
+        Pi(i)=pi[i];
+        Pj(i)=(T)di[i];
+    }
+    E=Pi-Pj;
+    Eigen::Quaternion<T>Qi(pi[6],pi[3],pi[4],pi[5]);
+    Eigen::Quaternion<T>Qj((T)qi.w(),(T)qi.x(),(T)qi.y(),(T)qi.z());
+    Eigen::Quaternion<T>Qk=Qj*Qi.inverse();
+    Qk.normalize();
+    for(int i=0;i<=2;i++){
+      residuals[i]=E(i)/(T)info1;
+    }
+    residuals[3]=Qk.x()/(T)info2;
+    residuals[4]=Qk.y()/(T)info2;
+    residuals[5]=Qk.z()/(T)info2;
+    residuals[6]=(Qk.w()-(T)1.00)/(T)info2;
+    return true;
+  }
+  Eigen::Vector3d di;
+  Eigen::Quaterniond qi;
+  double info1,info2;
+};
+
 struct kinFactor_bet_4dof_2
 {
   kinFactor_bet_4dof_2(double POSEI[],double YawI[], double POSEJ[],double YawJ[],double _deltaTime, Eigen::Matrix<double,4,1> _info)
@@ -300,7 +338,7 @@ struct kinFactor_connect_4dof_tight
     Eigen::Matrix<T,3,3> WR[2];
     for(int i=0;i<=2;i++)for(int j=0;j<=2;j++)WR[0](i,j)=(T)wr[0](i,j),WR[1](i,j)=(T)wr[1](i,j);
 
-    Pi[1]=Yawi*WP[1]+Pi[1];
+    Pi[1]=WP[1];
 
     Pi[0]+=Qi[0].toRotationMatrix()*Eigen::Matrix<T, 3, 1>(hinge);
     Pi[0]=WR[0]*Pi[0]+WP[0];
@@ -372,7 +410,7 @@ struct kinFactor_connect_hyp_4dof_tight
     Eigen::Matrix<T,3,1>Line1=Pi[0]-Pi[1];
     Eigen::Matrix<T,3,1>Line2=Pi[0]-Pi[2];
     Eigen::Matrix<T,3,1>N=Line1.cross(Line2);
-    N=N/(N.norm()+0.000001);
+    N.normalize();
     residuals[0]=(N(2)-(T)z_val)/info;
     return true;
   }

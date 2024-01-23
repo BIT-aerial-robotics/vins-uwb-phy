@@ -15,16 +15,34 @@
 map<double, OdometryVins> data[5];
 ros::Publisher pub_cent_odometry;
 std::mutex m_buf;
+int USE_GT=0;
+std::default_random_engine generator;
+std::normal_distribution<double> noise_normal_distribution(0.0, 0.08);
 void self_odometry_callback(const nav_msgs::OdometryConstPtr &msg, int idx)
 {
     m_buf.lock();
     Eigen::Vector3d ps, vs, ws;
     Eigen::Quaterniond rs;
     tf::pointMsgToEigen(msg->pose.pose.position, ps);
+    
     tf::vectorMsgToEigen(msg->twist.twist.linear, vs);
     tf::vectorMsgToEigen(msg->twist.twist.angular, ws);
     tf::quaternionMsgToEigen(msg->pose.pose.orientation, rs);
     OdometryVins tmp(ps, vs, ws, rs, msg->header.stamp.toSec());
+    data[idx][tmp.time]=tmp;
+    m_buf.unlock();
+}
+void self_odometry_callback_2(const geometry_msgs::PoseStampedConstPtr &msg, int idx)
+{
+    m_buf.lock();
+    Eigen::Vector3d ps, vs, ws;
+    Eigen::Quaterniond rs;
+    tf::pointMsgToEigen(msg->pose.position, ps);
+    
+    //tf::vectorMsgToEigen(msg->twist.twist.linear, vs);
+    //tf::vectorMsgToEigen(msg->twist.twist.angular, ws);
+    tf::quaternionMsgToEigen(msg->pose.orientation, rs);
+    OdometryVins tmp(ps,rs, msg->header.stamp.toSec());
     data[idx][tmp.time]=tmp;
     m_buf.unlock();
 }
@@ -43,17 +61,29 @@ void sync_process()
             a_now[1]=data[1].begin()->second;
             f2=OdometryVins::queryOdometryMap(data[2],a_now[1].time,a_now[2],0.02);
             f3=OdometryVins::queryOdometryMap(data[3],a_now[1].time,a_now[3],0.02);
+            // if(abs(noise_normal_distribution(generator))>0.16)
+            // {
+            //     for(int i=1;i<=3;i++)
+            //     a_now[i].Ps+=Eigen::Vector3d(noise_normal_distribution(generator),noise_normal_distribution(generator),noise_normal_distribution(generator));
+            // }
             if (f2&&f3)
             {
                 Eigen::Vector3d ps = Eigen::Vector3d::Zero(), vs = Eigen::Vector3d::Zero(), ws;
                 for (int i = 1; i <= 3; i++)
                 {
-                    ps += a_now[i].Ps;
-                    vs += a_now[i].Vs;
+                    if(USE_GT==0){
+                        ps += a_now[i].Ps;
+                        vs += a_now[i].Vs;
+                    }
+                    else{
+                        ps += a_now[i].Ps+a_now[i].Rs*Eigen::Vector3d(-0.0,0.00,-0.03);
+                        vs += a_now[i].Vs;
+                    }
+                    
                 }
                 ps /= 3;
                 vs /= 3;
-                Eigen::Vector3d p1 = a_now[2].Ps - a_now[1].Ps, p2 = a_now[3].Ps - a_now[1].Ps;
+                Eigen::Vector3d p1 = a_now[1].Ps - (a_now[2].Ps*0.5+a_now[3].Ps*0.5), p2 = a_now[2].Ps - a_now[3].Ps;
                 p1.normalize();
                 p2.normalize();
                 Eigen::Vector3d p3 = p1.cross(p2);
@@ -101,7 +131,10 @@ int main(int argc, char **argv)
     pub_cent_odometry = n.advertise<nav_msgs::Odometry>("/ag0/imu_propagate", 1000);
     for (int i = 1; i <= 3; i++)
     {
+        if(USE_GT==0)
         sub_self_odometry[i] = n.subscribe<nav_msgs::Odometry>("/ag" + std::to_string(i) + "/vins_estimator/imu_propagate", 500, boost::bind(self_odometry_callback, _1, i));
+        else
+        sub_self_odometry[i] = n.subscribe<geometry_msgs::PoseStamped>("/vrpn_client_node/ag" + std::to_string(i) + "/pose", 500, boost::bind(self_odometry_callback_2, _1, i));
     }
     std::thread sync_thread{sync_process};
     ros::spin();
