@@ -57,8 +57,13 @@ int SIM_UWB;
 int USE_KIN;
 int uwbNum=0,lowNum=0;
 int FLIGHT_MODE;
+int USE_EXR;
 Eigen::Vector3d HINGE;
 double KIN_LENGTH;
+Eigen::Matrix<double,7,1>sigma_rt_6dof;
+Eigen::Matrix<double,7,1>sigma_vins_6dof;
+int USE_LONG_WINDOW;
+double LINK_W,MOVE_W;
 template <typename T>
 T readParam(ros::NodeHandle &n, std::string name)
 {
@@ -225,5 +230,14 @@ void readParameters(std::string config_file)
     else uwbNum=3,lowNum=0;
     HINGE<<-0.1,0.00,-0.03;
     KIN_LENGTH=0.841;
+    sigma_rt_6dof(0)=sigma_rt_6dof(1)=sigma_rt_6dof(2)=0.01;
+    sigma_rt_6dof(3)=sigma_rt_6dof(4)=sigma_rt_6dof(5)=sigma_rt_6dof(6)=0.04;
+    sigma_vins_6dof(0)=sigma_vins_6dof(1)=sigma_vins_6dof(2)=0.04;
+    sigma_vins_6dof(3)=sigma_vins_6dof(4)=sigma_vins_6dof(5)=sigma_vins_6dof(6)=0.1;
+    USE_EXR=0;
+    USE_LONG_WINDOW=1;
+
+    LINK_W=0.04;
+    MOVE_W=0.015;
     fsSettings.release();
 }

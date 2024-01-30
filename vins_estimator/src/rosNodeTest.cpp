@@ -21,7 +21,7 @@ std::mutex m_buf;
 
 // 设置随机数生成器
 std::default_random_engine generator;
-std::normal_distribution<double> noise_normal_distribution(0.0, 0.05);
+std::normal_distribution<double> noise_normal_distribution(0.0, 0.1);
 std::uniform_real_distribution<double> noise_uniform_distribution(-0.1, 0.1);  // 均匀分布
 ros::Publisher pub_range_raw;
 ros::Publisher pub_range_data;
@@ -194,7 +194,7 @@ Eigen::Vector3d anchor_create_pos[5]={
 const int ANCHORNUMBER=4;
 double getNoiseRandomValue(double dis,Eigen::Vector3d eul)
 {
-    double noisy_value = noise_normal_distribution(generator)+noise_uniform_distribution(generator)*0.1;
+    double noisy_value = noise_normal_distribution(generator)+noise_uniform_distribution(generator)*0.0;
     double anomaly_probability = noise_uniform_distribution(generator);
     //noisy_value=0;
     // 如果满足异常概率，引入异常值
@@ -216,7 +216,7 @@ double getNoiseRandomValue(double dis,Eigen::Vector3d eul)
         }
     }
     
-    return noisy_value;//+(dis/1.8)*0.1+abs(eul.x())/180*3.14*0.1+abs(eul.y())/180*3.14*0.08+abs(eul.z())/180*3.14*0.5;
+    return noisy_value+(dis/1.8)*0.1;//+abs(eul.x())/180*3.14*0.1+abs(eul.y())/180*3.14*0.08+abs(eul.z())/180*3.14*0.5;
 }
 void ground_truth_callback(const nav_msgs::OdometryConstPtr &msg,int idx)
 {

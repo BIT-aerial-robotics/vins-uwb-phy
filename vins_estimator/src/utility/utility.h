@@ -27,9 +27,28 @@ Eigen::Matrix<T,3,3> fromYawToMat(T yaw)
     mat(2,2)=(T)(1);
     return mat;
 }
+
+
 class Utility
 {
   public:
+    template <typename T>
+    static Eigen::Matrix<T,3,1> R2ypr2(const Eigen::Matrix<T,3,3> &R)
+    {
+        Eigen::Matrix<T,3,1> n = R.col(0);
+        Eigen::Matrix<T,3,1> o = R.col(1);
+        Eigen::Matrix<T,3,1> a = R.col(2);
+
+        Eigen::Matrix<T,3,1> ypr(3);
+        T y = atan2(n(1), n(0));
+        T p = atan2(-n(2), n(0) * cos(y) + n(1) * sin(y));
+        T r = atan2(a(0) * sin(y) - a(1) * cos(y), -o(0) * sin(y) + o(1) * cos(y));
+        ypr(0) = y;
+        ypr(1) = p;
+        ypr(2) = r;
+
+        return ypr / (T)M_PI * (T)180.0;
+    }
     template <typename Derived>
     static Eigen::Quaternion<typename Derived::Scalar> deltaQ(const Eigen::MatrixBase<Derived> &theta)
     {

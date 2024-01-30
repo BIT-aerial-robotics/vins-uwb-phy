@@ -20,7 +20,7 @@ std::map<double, OdometryVins> pose_agent_buf[5];
 std::map<double, bool> isPub;
 double para_pos[5][200][3], para_yaw[5][200][1];
 
-double para_HINGE[1] = {-0.09};
+double para_HINGE[1] = {0};
 double para_LENGTH[1] = {0.841};
 double pre_calc_hinge[1] = {para_HINGE[0]};
 double pre_calc_length[1] = {para_LENGTH[0]};
@@ -573,9 +573,9 @@ int main(int argc, char **argv)
     }
     if (IMU_PROPAGATE == 1)
     {
-        sub_agent1_pose = n.subscribe<nav_msgs::Odometry>("/ag1/imu_propagate", 2000, boost::bind(agent_pose_callback, _1, 1));
-        sub_agent2_pose = n.subscribe<nav_msgs::Odometry>("/ag2/imu_propagate", 2000, boost::bind(agent_pose_callback, _1, 2));
-        sub_agent3_pose = n.subscribe<nav_msgs::Odometry>("/ag3/imu_propagate", 2000, boost::bind(agent_pose_callback, _1, 3));
+        sub_agent1_pose = n.subscribe<nav_msgs::Odometry>("/ag1/vins_estimator/imu_propagate", 2000, boost::bind(agent_pose_callback, _1, 1));
+        sub_agent2_pose = n.subscribe<nav_msgs::Odometry>("/ag2/vins_estimator/imu_propagate", 2000, boost::bind(agent_pose_callback, _1, 2));
+        sub_agent3_pose = n.subscribe<nav_msgs::Odometry>("/ag3/vins_estimator/imu_propagate", 2000, boost::bind(agent_pose_callback, _1, 3));
     }
     else
     {
