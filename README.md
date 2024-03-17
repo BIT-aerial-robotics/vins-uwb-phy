@@ -5,7 +5,7 @@
 紧耦合物理连接下的多飞行器动力学约束里程计融合
 
 ### 算法架构
-<img src="https://github.com/BIT-aerial-robotics/vins-uwb-phy/uwb/support_files/image/sys.png" width = 55% height = 55% div align=left />
+<img src="support_files/image/sys.png" width = 55% height = 55% div align=left />
 
 ## An optimization-based multi-sensor state estimator
 
