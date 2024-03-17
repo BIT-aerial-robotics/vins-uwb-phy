@@ -1,4 +1,12 @@
 # VINS-Fusion
+
+## Tight Fusion of Odometry and Kinematic Constraints for Multiple Aerial Vehicles in Physical Interconnection
+
+紧耦合物理连接下的多飞行器动力学约束里程计融合
+
+### 算法架构
+<img src="https://github.com/BIT-aerial-robotics/vins-uwb-phy/uwb/support_files/image/ALLSYS.pdf" width = 55% height = 55% div align=left />
+
 ## An optimization-based multi-sensor state estimator
 
 <img src="https://github.com/HKUST-Aerial-Robotics/VINS-Fusion/blob/master/support_files/image/vins_logo.png" width = 55% height = 55% div align=left />
