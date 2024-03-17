@@ -20,8 +20,8 @@
 <img src="support_files/image/liapBox.png" width = 45% height = 100% div align=center />
 
 #### 实验序列结果对比
-<img src="support_files/image/res1.png" width = 45% height = 100% div align=left />
-<img src="support_files/image/res2.png" width = 45% height = 100% div align=center />
+<img src="support_files/image/res1.png" width = 50% height = 100% div align=left />
+<img src="support_files/image/res2.png" width = 50% height = 100% div align=center />
 
 ## An optimization-based multi-sensor state estimator
 
