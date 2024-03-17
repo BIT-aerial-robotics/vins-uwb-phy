@@ -253,4 +253,5 @@ class Estimator
     std::deque<OdometryVins> Ps_long;
     std::deque<Eigen::Vector3d> Ps_long_res;
     double para_Pose_Long[LONG_WINDOW_SIZE][SIZE_POSE];
+    double para_self_len[1];
 };

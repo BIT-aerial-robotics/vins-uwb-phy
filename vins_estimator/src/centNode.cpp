@@ -53,7 +53,7 @@ void sync_process()
     {
         double time = 0;
         m_buf.lock();
-        cout<<data[1].size()<<" "<<data[2].size()<<" "<<data[3].size()<<endl;
+        //cout<<data[1].size()<<" "<<data[2].size()<<" "<<data[3].size()<<endl;
         if (!data[1].empty())
         {
             bool f2=false,f3=false;
@@ -101,7 +101,7 @@ void sync_process()
                 tf::quaternionEigenToMsg(cent.Rs, odometry.pose.pose.orientation);
                 tf::vectorEigenToMsg(cent.Vs, odometry.twist.twist.linear);
                 pub_cent_odometry.publish(odometry);
-                cout << ps << endl;
+                //cout << ps << endl;
                 failnum=0;
                 data[1].erase(data[1].begin());
             }
@@ -128,7 +128,7 @@ int main(int argc, char **argv)
     ros::NodeHandle n;
     ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Info);
     ros::Subscriber sub_self_odometry[4];
-    pub_cent_odometry = n.advertise<nav_msgs::Odometry>("/ag0/imu_propagate", 1000);
+    pub_cent_odometry = n.advertise<nav_msgs::Odometry>("/ag0/vins_estimator/imu_propagate", 1000);
     for (int i = 1; i <= 3; i++)
     {
         if(USE_GT==0)

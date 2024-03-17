@@ -19,12 +19,12 @@
     <group ns="ag1">
         <node name="vins_estimator" pkg="vins" type="vins_node" output="screen" args="/home/f404/catkin_tmp/src/VINS-Fusion/config/realsense_d435i_1_1944/realsense_stereo_imu_config.yaml"/>
     </group>
-    <!-- <group ns="ag2">
+    <group ns="ag2">
         <node name="vins_estimator" pkg="vins" type="vins_node" output="screen" args="/home/f404/catkin_tmp/src/VINS-Fusion/config/realsense_d435i_2_6320/realsense_stereo_imu_config.yaml"/>
     </group>
     <group ns="ag3">
         <node name="vins_estimator" pkg="vins" type="vins_node" output="screen" args="/home/f404/catkin_tmp/src/VINS-Fusion/config/realsense_d435i_3_2454/realsense_stereo_imu_config.yaml"/>
-    </group> -->
+    </group>
 
     <node pkg="rosbag" type="play" name="player" output="log" 
     args="$(arg sequence_1) -s 3 -r 0.25

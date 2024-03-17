@@ -21,7 +21,7 @@ std::mutex m_buf;
 
 // 设置随机数生成器
 std::default_random_engine generator;
-std::normal_distribution<double> noise_normal_distribution(0.0, 0.1);
+std::normal_distribution<double> noise_normal_distribution(0.0, 0.09);
 std::uniform_real_distribution<double> noise_uniform_distribution(-0.1, 0.1);  // 均匀分布
 ros::Publisher pub_range_raw;
 ros::Publisher pub_range_data;
@@ -29,6 +29,7 @@ double anomaly_probability = 0.05;  // 异常值出现的概率
 double anomaly_magnitude = 10.0;   // 异常值的大小
 double anomaly_window=0.0;
 ros::Publisher pub_est_mark;
+int global_pose=1;
 void img0_callback(const sensor_msgs::ImageConstPtr &img_msg)
 {
     m_buf.lock();
@@ -143,9 +144,17 @@ void imu_callback(const sensor_msgs::ImuConstPtr &imu_msg)
     // Vector3d acc(dx, dy, dz);
     // Vector3d gyr(rx, ry, rz);
     //# 右下前转前左上
-    Vector3d acc(dz, -dx, -dy);
-    Vector3d gyr(rz, -rx, -ry);
-    estimator.inputIMU(t, acc, gyr);
+    if(SIM_UE==1){
+        Vector3d acc(dx, dy, dz);
+        Vector3d gyr(rx, ry, rz);
+        estimator.inputIMU(t, acc, gyr);
+    }
+    else{
+        Vector3d acc(dz, -dx, -dy);
+        Vector3d gyr(rz, -rx, -ry);
+        estimator.inputIMU(t, acc, gyr);
+    }
+    
     return;
 }
 
@@ -185,10 +194,17 @@ void feature_callback(const sensor_msgs::PointCloudConstPtr &feature_msg)
 
 
 int first_uwb=0;
+// Eigen::Vector3d anchor_create_pos[5]={
+//     Eigen::Vector3d(-4.17,-4.35,1.38),
+//     Eigen::Vector3d(2.93,-3.65,1.3),
+//     Eigen::Vector3d(2.76,1.12,1.59),
+//     Eigen::Vector3d(-4.48,1.17,1.14)
+// };
+
 Eigen::Vector3d anchor_create_pos[5]={
-    Eigen::Vector3d(-4.17,-4.35,1.38),
-    Eigen::Vector3d(2.93,-3.65,1.3),
-    Eigen::Vector3d(2.76,1.12,1.59),
+    Eigen::Vector3d(-8.17,-4.35,1.38),
+    Eigen::Vector3d(2.93,-6.65,3.3),
+    Eigen::Vector3d(8.76,8.12,1.59),
     Eigen::Vector3d(-4.48,1.17,1.14)
 };
 const int ANCHORNUMBER=4;
@@ -220,6 +236,7 @@ double getNoiseRandomValue(double dis,Eigen::Vector3d eul)
 }
 void ground_truth_callback(const nav_msgs::OdometryConstPtr &msg,int idx)
 {
+    if(idx!=AGENT_NUMBER)return;
     m_buf.lock();
     Eigen::Vector3d ps,vs,ws;
     Eigen::Quaterniond rs;
@@ -238,28 +255,30 @@ void ground_truth_callback(const nav_msgs::OdometryConstPtr &msg,int idx)
         // //nlink_parser::LinktrackNodeframe2 frame;
         for(int i=0;i<ANCHORNUMBER;i++){
             double range=(ps-anchor_create_pos[i]).norm();
+            //ROS_INFO("%lf %lf %lf",anchor_create_pos[i](0),anchor_create_pos[i](1),anchor_create_pos[i](2));
             double range2=range+getNoiseRandomValue(range,Utility::R2ypr(rs.toRotationMatrix()));
             bool res=uwb_manager[i].addUWBMeasurements(0,time,range2);
             geometry_msgs::Pose raw_pose;
-            raw_pose.position.x=range2;
-            raw_pose.position.y=range;
+            //raw_pose.position.x=range2;
+            //raw_pose.position.y=range;
             //frame.nodes[i]=range;
             raw.poses.push_back(raw_pose);
             if(res){
-            double dis=uwb_manager[i].uwb_range_sol_data[0].back().range;
-            estimator.inputRange(i,time,dis);
-            geometry_msgs::Pose data_pose;
-            data_pose.position.x=dis;
-            data.poses.push_back(data_pose);
+                double dis=uwb_manager[i].uwb_range_sol_data[0].back().range;
+                estimator.inputRange(i,time,dis);
+                //ROS_INFO("%d %d %d %lf %lf",AGENT_NUMBER,idx,i,time,dis);
+                //geometry_msgs::Pose data_pose;
+                //data_pose.position.x=dis;
+                //data.poses.push_back(data_pose);
             }
             else{
-                geometry_msgs::Pose data_pose;
-                data_pose.position.x=uwb_manager[i].uwb_range_sol_data[0].back().range;
-                data.poses.push_back(data_pose);
+                //geometry_msgs::Pose data_pose;
+                //data_pose.position.x=uwb_manager[i].uwb_range_sol_data[0].back().range;
+                //data.poses.push_back(data_pose);
             }
         }
-        pub_range_raw.publish(raw);
-        pub_range_data.publish(data);
+        //pub_range_raw.publish(raw);
+        //pub_range_data.publish(data);
     }
     
     
@@ -311,6 +330,11 @@ void ground_truth_callback_2(const geometry_msgs::PoseStampedConstPtr &msg,int i
         pub_range_raw.publish(raw);
         pub_range_data.publish(data);
     }
+    if(global_pose)
+    {
+        OdometryVins tmp(ps,vs,ws,rs,msg->header.stamp.toSec());
+        estimator.inputOtherPose(idx,tmp);
+    }
 }
 void anchor_call_back(const geometry_msgs::PoseStampedConstPtr &msg,int idx)
 {
@@ -345,7 +369,7 @@ void uwb_callback(const nlink_parser::LinktrackNodeframe2ConstPtr &msg)
         bool res=uwb_manager[id-4].addUWBMeasurements(0,time,node.dis);
         double dis=uwb_manager[id-4].uwb_range_sol_data[0].back().range;
         if(res){
-            //estimator.inputRange(id-4,time,dis);
+            estimator.inputRange(id-4,time,dis);
             //geometry_msgs::Pose data_pose;
             //data_pose.position.x=dis;
             //data.poses.push_back(data_pose);
@@ -417,8 +441,17 @@ void self_odometry_callback(const nav_msgs::OdometryConstPtr &msg,int idx)
             //uwb_manager[i].addOdometryMeasurements(ps,vs,ws,rs,msg->header.stamp.toSec());
         }
     }
-    OdometryVins tmp(ps,vs,ws,rs,msg->header.stamp.toSec());
-    estimator.inputOtherPose(idx,tmp);
+    if(USE_LOOSE==0)
+    {
+        OdometryVins tmp(ps,vs,ws,rs,msg->header.stamp.toSec());
+        estimator.inputOtherPose(idx,tmp);
+    }
+    else{
+        ps=ps+rs*HINGE;
+        OdometryVins tmp(ps,vs,ws,rs,msg->header.stamp.toSec());
+        estimator.inputOtherPose(idx,tmp);
+    }
+    
     //m_buf.unlock();
 }
 void center_imu_callback(const sensor_msgs::ImuConstPtr &imu_msg)
@@ -497,6 +530,12 @@ int main(int argc, char **argv)
         sub_gt[3]=n.subscribe<nav_msgs::Odometry>("/pose_2", 2000, boost::bind(ground_truth_callback, _1, 3));
         sub_gt[2]=n.subscribe<nav_msgs::Odometry>("/pose_3", 2000, boost::bind(ground_truth_callback, _1, 2));
         sub_gt[1]=n.subscribe<nav_msgs::Odometry>("/pose_1", 2000, boost::bind(ground_truth_callback, _1, 1));
+        for(int i=0;i<4;i++){
+            for(int j=0;j<=1;j++)
+            {
+                //anchor_create_pos[i](j)=anchor_create_pos[i](j)*2;
+            }
+        }
     }
     else{
         //sub_gt[3]=n.subscribe<geometry_msgs::PoseStamped>("/vrpn_client_node/ag3/pose", 2000, boost::bind(ground_truth_callback_2, _1, 3));
@@ -510,9 +549,22 @@ int main(int argc, char **argv)
     }
     ros::Subscriber sub_self_odometry[4];
     for(int i=1;i<=3;i++){
-        sub_self_odometry[i]=n.subscribe<nav_msgs::Odometry>("/ag"+std::to_string(i)+"/vins_estimator/imu_propagate", 500, boost::bind(self_odometry_callback, _1, i));
+        if(USE_LOOSE==0)
+        {
+            sub_self_odometry[i]=n.subscribe<nav_msgs::Odometry>("/ag"+std::to_string(i)+"/vins_estimator/imu_propagate", 
+            500, boost::bind(self_odometry_callback, _1, i));
+        }
+        
+        else{
+            sub_self_odometry[i]=n.subscribe<nav_msgs::Odometry>("/vins_" + to_string(i)+"/world_pose", 
+            500, boost::bind(self_odometry_callback, _1, i));
+        }
     }
     sub_self_odometry[0]=n.subscribe<sensor_msgs::Imu>("/mavros/imu/data",200,center_imu_callback);
+
+    if(SIM_UE==1){
+        
+    }
     std::thread sync_thread{sync_process};
     ros::spin();
 

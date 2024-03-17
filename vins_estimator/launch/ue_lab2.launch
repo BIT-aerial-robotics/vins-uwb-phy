@@ -1,5 +1,5 @@
 <launch>    
-    <arg name="sequence_1" default = "/home/f404/datacol/ue/slam_complete-2023120601.bag" />
+    <arg name="sequence_1" default = "/home/f404/datacol/ue/slam_complete-2023120602.bag" />
     <group ns="ag1">
         <node name="vins_estimator" pkg="vins" type="vins_node" output="screen" args="/home/f404/catkin_tmp/src/VINS-Fusion/config/ue/ue_stereo_imu_config_14.yaml"/>
     </group>
@@ -23,7 +23,7 @@
     /imu_2:=/ag3/imu_2
     /imu_1:=/ag1/imu_1
     /imu_3:=/ag2/imu_3
-    /imu_0:=/mavros/imu/data -r 0.4 --duration=85
+    /imu_0:=/mavros/imu/data -r 0.4 --duration=65
     " />
     <!-- <node name="rvizvisualisation" pkg="rviz" type="rviz" output="log" args="-d /home/f404/catkin_ws/src/VINS-Fusion/config/multi_agent_rviz.rviz" /> -->
     <node pkg="rosbag" type="record" name="bag_record" output="log" args="
@@ -36,7 +36,7 @@
     /pose_0
     /ag0/vins_estimator/imu_propagate
     /imu_0
-    -o /home/f404/output/uwb/ue5/lab0601/" />
+    -o /home/f404/output/uwb/ue5/lab0602/" />
 
     <node name="rvizvisualisation" pkg="rviz" type="rviz" output="log" 
     args="-d /home/f404/catkin_tmp/src/VINS-Fusion/config/multi_agent_rviz.rviz" />

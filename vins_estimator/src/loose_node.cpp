@@ -591,9 +591,9 @@ int main(int argc, char **argv)
     pub_odometry_frame[2] = n.advertise<nav_msgs::Odometry>("/ag2/rt_2_world", 1000);
     pub_odometry_frame[3] = n.advertise<nav_msgs::Odometry>("/ag3/rt_2_world", 1000);
 
-    pub_odometry_value[1] = n.advertise<nav_msgs::Odometry>("/ag1/odometry_calib", 1000);
-    pub_odometry_value[2] = n.advertise<nav_msgs::Odometry>("/ag2/odometry_calib", 1000);
-    pub_odometry_value[3] = n.advertise<nav_msgs::Odometry>("/ag3/odometry_calib", 1000);
+    pub_odometry_value[1] = n.advertise<nav_msgs::Odometry>("/vins_1/world_pose", 1000);
+    pub_odometry_value[2] = n.advertise<nav_msgs::Odometry>("/vins_2/world_pose", 1000);
+    pub_odometry_value[3] = n.advertise<nav_msgs::Odometry>("/vins_3/world_pose", 1000);
     std::thread sync_thread{sync_process};
     ros::spin();
 }

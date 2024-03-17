@@ -64,6 +64,7 @@ Eigen::Matrix<double,7,1>sigma_rt_6dof;
 Eigen::Matrix<double,7,1>sigma_vins_6dof;
 int USE_LONG_WINDOW;
 double LINK_W,MOVE_W;
+int USE_LOOSE;
 template <typename T>
 T readParam(ros::NodeHandle &n, std::string name)
 {
@@ -213,16 +214,17 @@ void readParameters(std::string config_file)
         ESTIMATE_TD = 0;
         printf("no imu, fix extrinsic param; no time offset calibration\n");
     }
-    USE_KIN=0;
+    USE_LOOSE=0;
+    USE_KIN=1;
     USELINE=0;
     USE_UWB=1;
     SIM_UWB=1;
-    imu_delta_fre=5;
+    imu_delta_fre=3;
     IMU_SAEM_FRE=1;
     MULAGENT=0;
     DEPEND=1;
     AGENT_NUMBER=fsSettings["agent_number"];
-    SIM_UE=0;
+    SIM_UE=1;
     if(AGENT_NUMBER==1){
         uwbNum=3,lowNum=0;
     }
@@ -234,9 +236,8 @@ void readParameters(std::string config_file)
     sigma_rt_6dof(3)=sigma_rt_6dof(4)=sigma_rt_6dof(5)=sigma_rt_6dof(6)=0.04;
     sigma_vins_6dof(0)=sigma_vins_6dof(1)=sigma_vins_6dof(2)=0.04;
     sigma_vins_6dof(3)=sigma_vins_6dof(4)=sigma_vins_6dof(5)=sigma_vins_6dof(6)=0.1;
-    USE_EXR=0;
-    USE_LONG_WINDOW=1;
-
+    USE_EXR=1;
+    USE_LONG_WINDOW=0;
     LINK_W=0.04;
     MOVE_W=0.015;
     fsSettings.release();

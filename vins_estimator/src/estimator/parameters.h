@@ -89,6 +89,7 @@ extern Eigen::Matrix<double,7,1>sigma_vins_6dof;
 extern int USE_EXR;
 extern int USE_LONG_WINDOW;
 extern double LINK_W,MOVE_W;
+extern int USE_LOOSE;
 void readParameters(std::string config_file);
 
 enum SIZE_PARAMETERIZATION
