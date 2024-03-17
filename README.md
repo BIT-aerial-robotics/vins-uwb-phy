@@ -3,9 +3,25 @@
 ## Tight Fusion of Odometry and Kinematic Constraints for Multiple Aerial Vehicles in Physical Interconnection
 
 紧耦合物理连接下的多飞行器动力学约束里程计融合
+### 物理机械结构
+<img src="support_files/image/SIAP.png" width = 45% height = 55% div align=left />
+<img src="support_files/image/LIAP.png" width = 45% height = 55% div align=center />
 
 ### 算法架构
-<img src="support_files/image/sys.png" width = 55% height = 55% div align=left />
+<img src="support_files/image/sys.png" width = 100% height = 100% div align=left />
+<img src="support_files/image/factor.png" width = 100% height = 50% div align=left />
+
+### 实验运动轨迹
+<img src="support_files/image/Figure_2.png" width = 100% height = 100% div align=left />
+
+### 实验结果
+#### SIAP与LIAP误差四分位图
+<img src="support_files/image/siapBox.png" width = 45% height = 100% div align=left />
+<img src="support_files/image/liapBox.png" width = 45% height = 100% div align=center />
+
+#### 实验序列结果对比
+<img src="support_files/image/res1.png" width = 45% height = 100% div align=left />
+<img src="support_files/image/res2.png" width = 45% height = 100% div align=center />
 
 ## An optimization-based multi-sensor state estimator
 
