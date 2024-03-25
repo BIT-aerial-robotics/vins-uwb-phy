@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # VINS-Fusion
 
 ## Tight Fusion of Odometry and Kinematic Constraints for Multiple Aerial Vehicles in Physical Interconnection
@@ -23,6 +24,29 @@
 <img src="support_files/image/res1.png" width = 50% height = 100% div align=left />
 <img src="support_files/image/res2.png" width = 50% height = 100% div align=center />
 
+=======
+# VINS-Fusion-gpu
+This repository is a version of VINS-Fusion with GPU acceleration. It can run on Nvidia TX2 in real-time. 
+## 1. Prerequisites  
+The essential software environment is same as VINS-Fusion. Besides, it requires OpenCV cuda version.(Only test it on OpenCV 3.4.1).
+## 2. Usage
+### 2.1 Change the opencv path in the CMakeLists
+In /vins_estimator/CMakeLists.txt, change Line 20 to your path.  
+In /loop_fusion/CmakeLists.txt, change Line 19 to your path.
+### 2.2 Change the acceleration parameters as you need.
+In the config file, there are two parameters for gpu acceleration.  
+use_gpu: 0 for off, 1 for on  
+use_gpu_acc_flow:  0 for off, 1 for on  
+If your GPU resources is limitted or you want to use GPU for other computaion. You can set  
+use_gpu: 1  
+use_gpu_acc_flow: 0  
+If your other application do not require much GPU resources, I recommanded you to set  
+use_gpu: 1  
+use_gpu_acc_flow: 1  
+According to my test, on TX2 if you set this two parameters to 1 at the same time, the GPU usage is about 20%.
+
+# VINS-Fusion
+>>>>>>> gpu/master
 ## An optimization-based multi-sensor state estimator
 
 <img src="https://github.com/HKUST-Aerial-Robotics/VINS-Fusion/blob/master/support_files/image/vins_logo.png" width = 55% height = 55% div align=left />
@@ -47,7 +71,14 @@ We are the **top** open-sourced stereo algorithm on [KITTI Odometry Benchmark](h
 alt="VINS" width="320" height="240" border="10" /></a>
 
 
+<<<<<<< HEAD
 **Related Paper:** (paper is not exactly same with code)
+=======
+**Related Papers:** (papers are not exactly same with code)
+* **A General Optimization-based Framework for Local Odometry Estimation with Multiple Sensors**, Tong Qin, Jie Pan, Shaozu Cao, Shaojie Shen, aiXiv [pdf](https://arxiv.org/abs/1901.03638) 
+
+* **A General Optimization-based Framework for Global Pose Estimation with Multiple Sensors**, Tong Qin, Shaozu Cao, Jie Pan, Shaojie Shen, aiXiv [pdf](https://arxiv.org/abs/1901.03642) 
+>>>>>>> gpu/master
 
 * **Online Temporal Calibration for Monocular Visual-Inertial Systems**, Tong Qin, Shaojie Shen, IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS, 2018), **best student paper award** [pdf](https://ieeexplore.ieee.org/abstract/document/8593603)
 
@@ -161,6 +192,7 @@ cd ~/catkin_ws/src/VINS-Fusion/camera_models/camera_calib_example/
 rosrun camera_models Calibrations -w 12 -h 8 -s 80 -i calibrationdata --camera-model pinhole
 ```
 
+<<<<<<< HEAD
 ## 7. Docker Support
 To further facilitate the building process, we add docker in our code. Docker environment is like a sandbox, thus makes our code environment-independent. To run with docker, first make sure [ros](http://wiki.ros.org/ROS/Installation) and [docker](https://docs.docker.com/install/linux/docker-ce/ubuntu/) are installed on your machine. Then add your account to `docker` group by `sudo usermod -aG docker $YOUR_USER_NAME`. **Relaunch the terminal or logout and re-login if you get `Permission denied` error**, type:
 ```
@@ -193,6 +225,13 @@ In Euroc cases, you need open another terminal and play your bag file. If you ne
 We use [ceres solver](http://ceres-solver.org/) for non-linear optimization and [DBoW2](https://github.com/dorian3d/DBoW2) for loop detection, a generic [camera model](https://github.com/hengli/camodocal) and [GeographicLib](https://geographiclib.sourceforge.io/).
 
 ## 9. License
+=======
+
+## 7. Acknowledgements
+We use [ceres solver](http://ceres-solver.org/) for non-linear optimization and [DBoW2](https://github.com/dorian3d/DBoW2) for loop detection, a generic [camera model](https://github.com/hengli/camodocal) and [GeographicLib](https://geographiclib.sourceforge.io/).
+
+## 8. License
+>>>>>>> gpu/master
 The source code is released under [GPLv3](http://www.gnu.org/licenses/) license.
 
 We are still working on improving the code reliability. For any technical issues, please contact Tong Qin <qintonguavATgmail.com>.

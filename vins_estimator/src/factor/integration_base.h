@@ -43,6 +43,7 @@ class IntegrationBase
         gyr_buf.push_back(gyr);
         propagate(dt, acc, gyr);
     }
+<<<<<<< HEAD
     void push_back(double dt, const Eigen::Vector3d &acc, const Eigen::Vector3d &gyr,double t)
     {
         last_t=t;
@@ -55,6 +56,9 @@ class IntegrationBase
         delta_v_buf.push_back(delta_v);
         delta_q_buf.push_back(delta_q);
     }
+=======
+
+>>>>>>> gpu/master
     void repropagate(const Eigen::Vector3d &_linearized_ba, const Eigen::Vector3d &_linearized_bg)
     {
         sum_dt = 0.0;
@@ -208,7 +212,11 @@ class IntegrationBase
     double dt;
     Eigen::Vector3d acc_0, gyr_0;
     Eigen::Vector3d acc_1, gyr_1;
+<<<<<<< HEAD
     double last_t;
+=======
+
+>>>>>>> gpu/master
     const Eigen::Vector3d linearized_acc, linearized_gyr;
     Eigen::Vector3d linearized_ba, linearized_bg;
 
@@ -223,6 +231,7 @@ class IntegrationBase
     Eigen::Vector3d delta_v;
 
     std::vector<double> dt_buf;
+<<<<<<< HEAD
     std::vector<double> last_t_buf;
     std::vector<Eigen::Vector3d> acc_buf;
     std::vector<Eigen::Vector3d> gyr_buf;
@@ -235,6 +244,11 @@ class IntegrationBase
     //std::vector<Eigen::Vector3d> vs_buf_404;
     //std::vector<Eigen::Quaterniond> rs_buf_404;
 
+=======
+    std::vector<Eigen::Vector3d> acc_buf;
+    std::vector<Eigen::Vector3d> gyr_buf;
+
+>>>>>>> gpu/master
 };
 /*
 

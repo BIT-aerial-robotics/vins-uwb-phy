@@ -17,6 +17,7 @@
 #include <opencv2/core/eigen.hpp>
 #include <fstream>
 #include <map>
+<<<<<<< HEAD
 #include <tf/transform_datatypes.h>
 #include <eigen_conversions/eigen_msg.h>
 #include <random>
@@ -29,6 +30,13 @@ const double FOCAL_LENGTH = 460.0;
 const int LINE_MIN_OBS = 4;
 const int WINDOW_SIZE = 10;
 const int LONG_WINDOW_SIZE=60;
+=======
+
+using namespace std;
+
+const double FOCAL_LENGTH = 460.0;
+const int WINDOW_SIZE = 10;
+>>>>>>> gpu/master
 const int NUM_OF_F = 1000;
 //#define UNIT_SPHERE_ERROR
 
@@ -59,6 +67,14 @@ extern int NUM_OF_CAM;
 extern int STEREO;
 extern int USE_IMU;
 extern int MULTIPLE_THREAD;
+<<<<<<< HEAD
+=======
+extern int USE_GPU;
+extern int USE_GPU_ACC_FLOW;
+extern int PUB_RECTIFY;
+extern Eigen::Matrix3d rectify_R_left;
+extern Eigen::Matrix3d rectify_R_right;
+>>>>>>> gpu/master
 // pts_gt for debug purpose;
 extern map<int, Eigen::Vector3d> pts_gt;
 
@@ -70,6 +86,7 @@ extern int MIN_DIST;
 extern double F_THRESHOLD;
 extern int SHOW_TRACK;
 extern int FLOW_BACK;
+<<<<<<< HEAD
 extern int USELINE;
 extern int USE_UWB;
 extern int AGENT_NUMBER;
@@ -90,14 +107,21 @@ extern int USE_EXR;
 extern int USE_LONG_WINDOW;
 extern double LINK_W,MOVE_W;
 extern int USE_LOOSE;
+=======
+
+>>>>>>> gpu/master
 void readParameters(std::string config_file);
 
 enum SIZE_PARAMETERIZATION
 {
     SIZE_POSE = 7,
     SIZE_SPEEDBIAS = 9,
+<<<<<<< HEAD
     SIZE_FEATURE = 1,
     SIZE_LINE = 4
+=======
+    SIZE_FEATURE = 1
+>>>>>>> gpu/master
 };
 
 enum StateOrder

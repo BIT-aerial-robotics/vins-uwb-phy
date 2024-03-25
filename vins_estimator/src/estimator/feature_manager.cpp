@@ -13,10 +13,14 @@ int FeaturePerId::endFrame()
 {
     return start_frame + feature_per_frame.size() - 1;
 }
+<<<<<<< HEAD
 int FeatureLinePerId::endFrame()
 {
     return start_frame + feature_line_per_frame.size() - 1;
 }
+=======
+
+>>>>>>> gpu/master
 FeatureManager::FeatureManager(Matrix3d _Rs[])
     : Rs(_Rs)
 {
@@ -120,6 +124,7 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, const map<int, vec
         return parallax_sum / parallax_num >= MIN_PARALLAX;
     }
 }
+<<<<<<< HEAD
 bool FeatureManager::addFeatureCheckParallax(int frame_count, const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image,
     const map<int, vector<pair<int,Eigen::Vector4d> > > &image_line ,double td)
 {
@@ -190,6 +195,9 @@ bool FeatureManager::addFeatureCheckParallax(int frame_count, const map<int, vec
     }
     return addFeatureCheckParallaxOnlyPoint;
 }
+=======
+
+>>>>>>> gpu/master
 vector<pair<Vector3d, Vector3d>> FeatureManager::getCorresponding(int frame_count_l, int frame_count_r)
 {
     vector<pair<Vector3d, Vector3d>> corres;
@@ -502,6 +510,7 @@ void FeatureManager::triangulate(int frameCnt, Vector3d Ps[], Matrix3d Rs[], Vec
     }
 }
 
+<<<<<<< HEAD
 void FeatureManager::triangulateWithLine(int frameCnt, Vector3d Ps[], Matrix3d Rs[], Vector3d tic[], Matrix3d ric[])
 {
     triangulate(frameCnt,Ps,Rs,tic,ric);
@@ -638,6 +647,8 @@ void FeatureManager::triangulateWithLine(int frameCnt, Vector3d Ps[], Matrix3d R
     cout<<c[0]<<" "<<c[1]<<" "<<c[2]<<" "<<c[3]<<" "<<c[4]<<"  "<<feature_line.size()<<endl;
     //removeLineOutlier();
 }
+=======
+>>>>>>> gpu/master
 void FeatureManager::removeOutlier(set<int> &outlierIndex)
 {
     std::set<int>::iterator itSet;
@@ -693,6 +704,7 @@ void FeatureManager::removeBackShiftDepth(Eigen::Matrix3d marg_R, Eigen::Vector3
         }
         */
     }
+<<<<<<< HEAD
     if(USELINE){
         for (auto it = feature_line.begin(), it_next = feature_line.begin();
          it != feature_line.end(); it = it_next)
@@ -722,6 +734,8 @@ void FeatureManager::removeBackShiftDepth(Eigen::Matrix3d marg_R, Eigen::Vector3
             }
         }
     }
+=======
+>>>>>>> gpu/master
 }
 
 void FeatureManager::removeBack()
@@ -740,6 +754,7 @@ void FeatureManager::removeBack()
                 feature.erase(it);
         }
     }
+<<<<<<< HEAD
 
     if(USELINE){
         for (auto it = feature_line.begin(), it_next = feature_line.begin();
@@ -760,6 +775,8 @@ void FeatureManager::removeBack()
         }
     }
     
+=======
+>>>>>>> gpu/master
 }
 
 void FeatureManager::removeFront(int frame_count)
@@ -782,6 +799,7 @@ void FeatureManager::removeFront(int frame_count)
                 feature.erase(it);
         }
     }
+<<<<<<< HEAD
     if(USELINE){
         for (auto it = feature_line.begin(), it_next = feature_line.begin(); it != feature_line.end(); it = it_next)
         {
@@ -802,6 +820,8 @@ void FeatureManager::removeFront(int frame_count)
             }
         }
     }
+=======
+>>>>>>> gpu/master
 }
 
 double FeatureManager::compensatedParallax2(const FeaturePerId &it_per_id, int frame_count)
@@ -837,6 +857,7 @@ double FeatureManager::compensatedParallax2(const FeaturePerId &it_per_id, int f
     ans = max(ans, sqrt(min(du * du + dv * dv, du_comp * du_comp + dv_comp * dv_comp)));
 
     return ans;
+<<<<<<< HEAD
 }
 
 double FeatureManager::compensatedParallaxLine(const FeatureLinePerId &it_per_id, int frame_count)
@@ -1065,4 +1086,6 @@ void FeatureManager::setLineOrth(MatrixXd x,Vector3d P[], Matrix3d R[], Vector3d
 
         it_per_id.line_plucker = Utility::plk_from_pose(line_w, Rwc, twc); // transfrom to camera frame
     }
+=======
+>>>>>>> gpu/master
 }

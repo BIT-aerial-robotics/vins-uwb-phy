@@ -13,6 +13,7 @@
 #include <cassert>
 #include <cstring>
 #include <eigen3/Eigen/Dense>
+<<<<<<< HEAD
 typedef Eigen::Matrix<double,6,1> Vector6d;
 template <typename T>
 Eigen::Matrix<T,3,3> fromYawToMat(T yaw)
@@ -28,10 +29,13 @@ Eigen::Matrix<T,3,3> fromYawToMat(T yaw)
     return mat;
 }
 
+=======
+>>>>>>> gpu/master
 
 class Utility
 {
   public:
+<<<<<<< HEAD
     template <typename T>
     static Eigen::Matrix<T,3,1> R2ypr2(const Eigen::Matrix<T,3,3> &R)
     {
@@ -49,6 +53,8 @@ class Utility
 
         return ypr / (T)M_PI * (T)180.0;
     }
+=======
+>>>>>>> gpu/master
     template <typename Derived>
     static Eigen::Quaternion<typename Derived::Scalar> deltaQ(const Eigen::MatrixBase<Derived> &theta)
     {
@@ -178,6 +184,7 @@ class Utility
         return angle_degrees +
             two_pi * std::floor((-angle_degrees + T(180)) / two_pi);
     };
+<<<<<<< HEAD
 
     /*
         三点确定一个平面 a(x-x0)+b(y-y0)+c(z-z0)=0  --> ax + by + cz + d = 0   d = -(ax0 + by0 + cz0)
@@ -295,4 +302,6 @@ class Utility
         mat(2,2)=(T)(1);
         return mat;
     }
+=======
+>>>>>>> gpu/master
 };

@@ -1,3 +1,17 @@
+<<<<<<< HEAD
+=======
+/*******************************************************
+ * Copyright (C) 2019, Aerial Robotics Group, Hong Kong University of Science and Technology
+ * 
+ * This file is part of VINS.
+ * 
+ * Licensed under the GNU General Public License v3.0;
+ * you may not use this file except in compliance with the License.
+ *
+ * Author: Qin Tong (qintonguav@gmail.com)
+ *******************************************************/
+
+>>>>>>> gpu/master
 #include <stdio.h>
 #include <queue>
 #include <map>
@@ -9,13 +23,20 @@
 #include "estimator/estimator.h"
 #include "estimator/parameters.h"
 #include "utility/visualization.h"
+<<<<<<< HEAD
 #include "estimator/uwb_manager.h"
 #include "nlink_parser/LinktrackNodeframe2.h"
 Estimator estimator;
+=======
+
+Estimator estimator;
+
+>>>>>>> gpu/master
 queue<sensor_msgs::ImuConstPtr> imu_buf;
 queue<sensor_msgs::PointCloudConstPtr> feature_buf;
 queue<sensor_msgs::ImageConstPtr> img0_buf;
 queue<sensor_msgs::ImageConstPtr> img1_buf;
+<<<<<<< HEAD
 UWBManager uwb_manager[5];
 std::mutex m_buf;
 
@@ -30,6 +51,11 @@ double anomaly_magnitude = 10.0;   // 异常值的大小
 double anomaly_window=0.0;
 ros::Publisher pub_est_mark;
 int global_pose=1;
+=======
+std::mutex m_buf;
+
+
+>>>>>>> gpu/master
 void img0_callback(const sensor_msgs::ImageConstPtr &img_msg)
 {
     m_buf.lock();
@@ -82,13 +108,21 @@ void sync_process()
             {
                 double time0 = img0_buf.front()->header.stamp.toSec();
                 double time1 = img1_buf.front()->header.stamp.toSec();
+<<<<<<< HEAD
                 // 0.003s sync tolerance
                 if(time0 < time1 - 0.003)
+=======
+                if(time0 < time1)
+>>>>>>> gpu/master
                 {
                     img0_buf.pop();
                     printf("throw img0\n");
                 }
+<<<<<<< HEAD
                 else if(time0 > time1 + 0.003)
+=======
+                else if(time0 > time1)
+>>>>>>> gpu/master
                 {
                     img1_buf.pop();
                     printf("throw img1\n");
@@ -141,6 +175,7 @@ void imu_callback(const sensor_msgs::ImuConstPtr &imu_msg)
     double rx = imu_msg->angular_velocity.x;
     double ry = imu_msg->angular_velocity.y;
     double rz = imu_msg->angular_velocity.z;
+<<<<<<< HEAD
     // Vector3d acc(dx, dy, dz);
     // Vector3d gyr(rx, ry, rz);
     //# 右下前转前左上
@@ -155,6 +190,11 @@ void imu_callback(const sensor_msgs::ImuConstPtr &imu_msg)
         estimator.inputIMU(t, acc, gyr);
     }
     
+=======
+    Vector3d acc(dx, dy, dz);
+    Vector3d gyr(rx, ry, rz);
+    estimator.inputIMU(t, acc, gyr);
+>>>>>>> gpu/master
     return;
 }
 
@@ -191,6 +231,7 @@ void feature_callback(const sensor_msgs::PointCloudConstPtr &feature_msg)
     return;
 }
 
+<<<<<<< HEAD
 
 
 int first_uwb=0;
@@ -384,17 +425,29 @@ void uwb_callback(const nlink_parser::LinktrackNodeframe2ConstPtr &msg)
     //m_buf.unlock();
     //printf("\n");
 }
+=======
+>>>>>>> gpu/master
 void restart_callback(const std_msgs::BoolConstPtr &restart_msg)
 {
     if (restart_msg->data == true)
     {
         ROS_WARN("restart the estimator!");
+<<<<<<< HEAD
+=======
+        m_buf.lock();
+        while(!feature_buf.empty())
+            feature_buf.pop();
+        while(!imu_buf.empty())
+            imu_buf.pop();
+        m_buf.unlock();
+>>>>>>> gpu/master
         estimator.clearState();
         estimator.setParameter();
     }
     return;
 }
 
+<<<<<<< HEAD
 void imu_switch_callback(const std_msgs::BoolConstPtr &switch_msg)
 {
     if (switch_msg->data == true)
@@ -475,6 +528,12 @@ int main(int argc, char **argv)
 {
     ros::init(argc, argv, "vins_estimator");
     ros::NodeHandle n;
+=======
+int main(int argc, char **argv)
+{
+    ros::init(argc, argv, "vins_estimator");
+    ros::NodeHandle n("~");
+>>>>>>> gpu/master
     ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Info);
 
     if(argc != 2)
@@ -498,6 +557,7 @@ int main(int argc, char **argv)
     ROS_WARN("waiting for image and imu...");
 
     registerPub(n);
+<<<<<<< HEAD
     ros::Subscriber sub_imu;
     if(USE_IMU)
     {
@@ -565,8 +625,20 @@ int main(int argc, char **argv)
     if(SIM_UE==1){
         
     }
+=======
+
+    ros::Subscriber sub_imu = n.subscribe(IMU_TOPIC, 2000, imu_callback, ros::TransportHints().tcpNoDelay());
+    ros::Subscriber sub_feature = n.subscribe("/feature_tracker/feature", 2000, feature_callback);
+    ros::Subscriber sub_img0 = n.subscribe(IMAGE0_TOPIC, 100, img0_callback);
+    ros::Subscriber sub_img1 = n.subscribe(IMAGE1_TOPIC, 100, img1_callback);
+
+>>>>>>> gpu/master
     std::thread sync_thread{sync_process};
     ros::spin();
 
     return 0;
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> gpu/master

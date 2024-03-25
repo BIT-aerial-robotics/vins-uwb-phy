@@ -21,11 +21,18 @@ using namespace Eigen;
 
 #include <ros/console.h>
 #include <ros/assert.h>
+<<<<<<< HEAD
 #include <eigen3/Eigen/Dense>
 #include <eigen3/Eigen/Geometry>
 #include "parameters.h"
 #include "../utility/tic_toc.h"
 #include "../featureTracker/feature_tracker_line.h"
+=======
+
+#include "parameters.h"
+#include "../utility/tic_toc.h"
+
+>>>>>>> gpu/master
 class FeaturePerFrame
 {
   public:
@@ -59,6 +66,7 @@ class FeaturePerFrame
     bool is_stereo;
 };
 
+<<<<<<< HEAD
 
 class FeatureLinePerFrame
 {
@@ -86,6 +94,8 @@ class FeatureLinePerFrame
     Eigen::Vector4d line,lineRight;
     bool is_stereo;
 };
+=======
+>>>>>>> gpu/master
 class FeaturePerId
 {
   public:
@@ -105,6 +115,7 @@ class FeaturePerId
     int endFrame();
 };
 
+<<<<<<< HEAD
 class FeatureLinePerId
 {
   public:
@@ -140,6 +151,8 @@ class FeatureLinePerId
     int endFrame();
 };
 
+=======
+>>>>>>> gpu/master
 class FeatureManager
 {
   public:
@@ -149,8 +162,11 @@ class FeatureManager
     void clearState();
     int getFeatureCount();
     bool addFeatureCheckParallax(int frame_count, const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, double td);
+<<<<<<< HEAD
     bool addFeatureCheckParallax(int frame_count, const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image,
     const map<int, vector<pair<int,Eigen::Vector4d> > > &imageLine ,double td);
+=======
+>>>>>>> gpu/master
     vector<pair<Vector3d, Vector3d>> getCorresponding(int frame_count_l, int frame_count_r);
     //void updateDepth(const VectorXd &x);
     void setDepth(const VectorXd &x);
@@ -158,7 +174,10 @@ class FeatureManager
     void clearDepth();
     VectorXd getDepthVector();
     void triangulate(int frameCnt, Vector3d Ps[], Matrix3d Rs[], Vector3d tic[], Matrix3d ric[]);
+<<<<<<< HEAD
     void triangulateWithLine(int frameCnt, Vector3d Ps[], Matrix3d Rs[], Vector3d tic[], Matrix3d ric[]);
+=======
+>>>>>>> gpu/master
     void triangulatePoint(Eigen::Matrix<double, 3, 4> &Pose0, Eigen::Matrix<double, 3, 4> &Pose1,
                             Eigen::Vector2d &point0, Eigen::Vector2d &point1, Eigen::Vector3d &point_3d);
     void initFramePoseByPnP(int frameCnt, Vector3d Ps[], Matrix3d Rs[], Vector3d tic[], Matrix3d ric[]);
@@ -168,6 +187,7 @@ class FeatureManager
     void removeBack();
     void removeFront(int frame_count);
     void removeOutlier(set<int> &outlierIndex);
+<<<<<<< HEAD
     void removeLineOutlier();
     void removeLineOutlier(Matrix3d Rs2[],Vector3d Ps[], Vector3d tic[], Matrix3d ric[]);
     Eigen::MatrixXd getLineOrthVectorInCamera();
@@ -185,6 +205,16 @@ class FeatureManager
   private:
     double compensatedParallax2(const FeaturePerId &it_per_id, int frame_count);
     double compensatedParallaxLine(const FeatureLinePerId &it_per_id, int frame_count);
+=======
+    list<FeaturePerId> feature;
+    int last_track_num;
+    double last_average_parallax;
+    int new_feature_num;
+    int long_track_num;
+
+  private:
+    double compensatedParallax2(const FeaturePerId &it_per_id, int frame_count);
+>>>>>>> gpu/master
     const Matrix3d *Rs;
     Matrix3d ric[2];
 };

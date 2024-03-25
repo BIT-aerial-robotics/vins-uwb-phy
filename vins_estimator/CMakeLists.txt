@@ -14,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
     tf
     cv_bridge
     camera_models
+<<<<<<< HEAD
     image_transport
     nlink_parser
     eigen_conversions)
@@ -21,6 +22,13 @@ find_package(catkin REQUIRED COMPONENTS
 find_package(OpenCV REQUIRED)
 
 # message(WARNING "OpenCV_VERSION: ${OpenCV_VERSION}")
+=======
+    image_transport)
+
+#find_package(OpenCV REQUIRED)
+include(/home/dji/opencv/build/OpenCVConfig.cmake)
+#message(WARNING "OpenCV_VERSION: ${OpenCV_VERSION}")
+>>>>>>> gpu/master
 
 find_package(Ceres REQUIRED)
 
@@ -31,6 +39,7 @@ find_package(Eigen3)
 include_directories(
   ${catkin_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIR}
+<<<<<<< HEAD
   /home/f404/catkin_tmp/src/VINS-Fusion/vins_estimator/src/featureTracker/line_descriptor/include
 )
 
@@ -52,6 +61,23 @@ add_library(vins_lib
     src/factor/pose_local_parameterization.cpp
     src/factor/line_parameterization.cpp
     src/factor/line_projection_factor.cpp
+=======
+  ${OpenCV_INCLUDE_DIRS}
+)
+catkin_package()
+message(STATUS "OpenCV library status:")
+message(STATUS "    version: ${OpenCV_VERSION}")
+message(STATUS "    libraries: ${OpenCV_LIBS}")
+message(STATUS "    include path: ${OpenCV_INCLUDE_DIRS}")
+message(STATUS "    catkin libraries: ${catkin_LIBRARIES}")
+#catkin_package()
+
+add_library(vins_lib
+    src/estimator/parameters.cpp
+    src/estimator/estimator.cpp
+    src/estimator/feature_manager.cpp
+    src/factor/pose_local_parameterization.cpp
+>>>>>>> gpu/master
     src/factor/projectionTwoFrameOneCamFactor.cpp
     src/factor/projectionTwoFrameTwoCamFactor.cpp
     src/factor/projectionOneFrameTwoCamFactor.cpp
@@ -63,9 +89,14 @@ add_library(vins_lib
     src/initial/initial_aligment.cpp
     src/initial/initial_sfm.cpp
     src/initial/initial_ex_rotation.cpp
+<<<<<<< HEAD
     src/featureTracker/feature_tracker.cpp
     src/featureTracker/feature_tracker_line.cpp)
 target_link_libraries(vins_lib ${catkin_LIBRARIES} ${OpenCV_LIBS} ${CERES_LIBRARIES})
+=======
+    src/featureTracker/feature_tracker.cpp)
+target_link_libraries(vins_lib ${OpenCV_LIBS} ${catkin_LIBRARIES}  ${CERES_LIBRARIES})
+>>>>>>> gpu/master
 
 
 add_executable(vins_node src/rosNodeTest.cpp)
@@ -77,6 +108,7 @@ target_link_libraries(kitti_odom_test vins_lib)
 add_executable(kitti_gps_test src/KITTIGPSTest.cpp)
 target_link_libraries(kitti_gps_test vins_lib) 
 
+<<<<<<< HEAD
 add_executable(uwb_node src/uwbNode.cpp)
 target_link_libraries(uwb_node vins_lib) 
 
@@ -92,3 +124,5 @@ target_link_libraries(est_uwb vins_lib)
 
 add_executable(dataNode src/dataNode.cpp)
 target_link_libraries(dataNode vins_lib) 
+=======
+>>>>>>> gpu/master

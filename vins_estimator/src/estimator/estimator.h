@@ -29,23 +29,37 @@
 #include "../initial/initial_alignment.h"
 #include "../initial/initial_ex_rotation.h"
 #include "../factor/imu_factor.h"
+<<<<<<< HEAD
 #include "../factor/uwb_factor.h"
 #include "../factor/pose_local_parameterization.h"
 #include "../factor/marginalization_factor.h"
 #include "../factor/line_parameterization.h"
 #include "../factor/line_projection_factor.h"
+=======
+#include "../factor/pose_local_parameterization.h"
+#include "../factor/marginalization_factor.h"
+>>>>>>> gpu/master
 #include "../factor/projectionTwoFrameOneCamFactor.h"
 #include "../factor/projectionTwoFrameTwoCamFactor.h"
 #include "../factor/projectionOneFrameTwoCamFactor.h"
 #include "../featureTracker/feature_tracker.h"
+<<<<<<< HEAD
 #include "../featureTracker/feature_tracker_line.h"
 #include "../factor/kin_factor.h"
 #include "uwb_manager.h"
+=======
+
+
+>>>>>>> gpu/master
 class Estimator
 {
   public:
     Estimator();
+<<<<<<< HEAD
     ~Estimator();
+=======
+
+>>>>>>> gpu/master
     void setParameter();
 
     // interface
@@ -55,10 +69,14 @@ class Estimator
     void inputImage(double t, const cv::Mat &_img, const cv::Mat &_img1 = cv::Mat());
     void processIMU(double t, double dt, const Vector3d &linear_acceleration, const Vector3d &angular_velocity);
     void processImage(const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, const double header);
+<<<<<<< HEAD
     void processImage(const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image,
     const map<int, vector<pair<int, Vector4d>>> &image_line, const double header);
     void processMeasurements();
     void changeSensorType(int use_imu, int use_stereo);
+=======
+    void processMeasurements();
+>>>>>>> gpu/master
 
     // internal
     void clearState();
@@ -85,6 +103,7 @@ class Estimator
     void fastPredictIMU(double t, Eigen::Vector3d linear_acceleration, Eigen::Vector3d angular_velocity);
     bool IMUAvailable(double t);
     void initFirstIMUPose(vector<pair<double, Eigen::Vector3d>> &accVector);
+<<<<<<< HEAD
     void onlyLineOpt();   // 三角化以后，优化一把
     void optimizationwithLine();
     void double2vector2();
@@ -115,6 +134,9 @@ class Estimator
         }
     }
     //bool queryOdometry(map<double,OdometryVins>mp,double time,OdometryVins &query);
+=======
+
+>>>>>>> gpu/master
     enum SolverFlag
     {
         INITIAL,
@@ -127,6 +149,7 @@ class Estimator
         MARGIN_SECOND_NEW = 1
     };
 
+<<<<<<< HEAD
     std::mutex mProcess;
     std::mutex mBuf;
     std::mutex mPropagate;
@@ -135,6 +158,12 @@ class Estimator
     queue<pair<double, Eigen::Vector3d>> gyrBuf;
     queue<pair<double, map<int, vector<pair<int, Eigen::Matrix<double, 7, 1> > > > > > featureBuf;
     queue<pair<double,pair<map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> , map<int, vector<pair<int, Vector4d>>> >>> featureWithLineBuf;
+=======
+    std::mutex mBuf;
+    queue<pair<double, Eigen::Vector3d>> accBuf;
+    queue<pair<double, Eigen::Vector3d>> gyrBuf;
+    queue<pair<double, map<int, vector<pair<int, Eigen::Matrix<double, 7, 1> > > > > > featureBuf;
+>>>>>>> gpu/master
     double prevTime, curTime;
     bool openExEstimation;
 
@@ -142,7 +171,10 @@ class Estimator
     std::thread processThread;
 
     FeatureTracker featureTracker;
+<<<<<<< HEAD
     FeatureTrackerLine line_feature_tracker;
+=======
+>>>>>>> gpu/master
 
     SolverFlag solver_flag;
     MarginalizationFlag  marginalization_flag;
@@ -172,6 +204,11 @@ class Estimator
     int frame_count;
     int sum_of_outlier, sum_of_back, sum_of_front, sum_of_invalid;
     int inputImageCnt;
+<<<<<<< HEAD
+=======
+    float sum_t_feature;
+    int begin_time_count;
+>>>>>>> gpu/master
 
     FeatureManager f_manager;
     MotionEstimator m_estimator;
@@ -194,7 +231,11 @@ class Estimator
     double para_Retrive_Pose[SIZE_POSE];
     double para_Td[1][1];
     double para_Tr[1][1];
+<<<<<<< HEAD
     double para_LineFeature[NUM_OF_F][SIZE_LINE];
+=======
+
+>>>>>>> gpu/master
     int loop_window_index;
 
     MarginalizationInfo *last_marginalization_info;
@@ -211,6 +252,7 @@ class Estimator
     Eigen::Quaterniond latest_Q;
 
     bool initFirstPoseFlag;
+<<<<<<< HEAD
     bool initThreadFlag;
 
     int frame_sol_cnt;
@@ -254,4 +296,6 @@ class Estimator
     std::deque<Eigen::Vector3d> Ps_long_res;
     double para_Pose_Long[LONG_WINDOW_SIZE][SIZE_POSE];
     double para_self_len[1];
+=======
+>>>>>>> gpu/master
 };

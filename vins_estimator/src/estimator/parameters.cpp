@@ -36,6 +36,14 @@ int NUM_OF_CAM;
 int STEREO;
 int USE_IMU;
 int MULTIPLE_THREAD;
+<<<<<<< HEAD
+=======
+int USE_GPU;
+int USE_GPU_ACC_FLOW;
+int PUB_RECTIFY;
+Eigen::Matrix3d rectify_R_left;
+Eigen::Matrix3d rectify_R_right;
+>>>>>>> gpu/master
 map<int, Eigen::Vector3d> pts_gt;
 std::string IMAGE0_TOPIC, IMAGE1_TOPIC;
 std::string FISHEYE_MASK;
@@ -45,6 +53,7 @@ int MIN_DIST;
 double F_THRESHOLD;
 int SHOW_TRACK;
 int FLOW_BACK;
+<<<<<<< HEAD
 int USELINE;
 int imu_delta_fre;
 int IMU_SAEM_FRE;
@@ -65,6 +74,10 @@ Eigen::Matrix<double,7,1>sigma_vins_6dof;
 int USE_LONG_WINDOW;
 double LINK_W,MOVE_W;
 int USE_LOOSE;
+=======
+
+
+>>>>>>> gpu/master
 template <typename T>
 T readParam(ros::NodeHandle &n, std::string name)
 {
@@ -83,7 +96,10 @@ T readParam(ros::NodeHandle &n, std::string name)
 
 void readParameters(std::string config_file)
 {
+<<<<<<< HEAD
     
+=======
+>>>>>>> gpu/master
     FILE *fh = fopen(config_file.c_str(),"r");
     if(fh == NULL){
         ROS_WARN("config_file dosen't exist; wrong config_file path");
@@ -108,6 +124,12 @@ void readParameters(std::string config_file)
 
     MULTIPLE_THREAD = fsSettings["multiple_thread"];
 
+<<<<<<< HEAD
+=======
+    USE_GPU = fsSettings["use_gpu"];
+    USE_GPU_ACC_FLOW = fsSettings["use_gpu_acc_flow"];
+
+>>>>>>> gpu/master
     USE_IMU = fsSettings["imu"];
     printf("USE_IMU: %d\n", USE_IMU);
     if(USE_IMU)
@@ -191,6 +213,10 @@ void readParameters(std::string config_file)
         cv::cv2eigen(cv_T, T);
         RIC.push_back(T.block<3, 3>(0, 0));
         TIC.push_back(T.block<3, 1>(0, 3));
+<<<<<<< HEAD
+=======
+        fsSettings["publish_rectify"] >> PUB_RECTIFY;
+>>>>>>> gpu/master
     }
 
     INIT_DEPTH = 5.0;
@@ -214,6 +240,7 @@ void readParameters(std::string config_file)
         ESTIMATE_TD = 0;
         printf("no imu, fix extrinsic param; no time offset calibration\n");
     }
+<<<<<<< HEAD
     USE_LOOSE=0;
     USE_KIN=0;
     USELINE=0;
@@ -240,5 +267,18 @@ void readParameters(std::string config_file)
     USE_LONG_WINDOW=0;
     LINK_W=0.04;
     MOVE_W=0.015;
+=======
+    if(PUB_RECTIFY)
+    {
+        cv::Mat rectify_left;
+        cv::Mat rectify_right;
+        fsSettings["cam0_rectify"] >> rectify_left;
+        fsSettings["cam1_rectify"] >> rectify_right;
+        cv::cv2eigen(rectify_left, rectify_R_left);
+        cv::cv2eigen(rectify_right, rectify_R_right);
+
+    }
+
+>>>>>>> gpu/master
     fsSettings.release();
 }
