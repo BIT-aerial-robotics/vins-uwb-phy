@@ -215,7 +215,7 @@ void readParameters(std::string config_file)
         printf("no imu, fix extrinsic param; no time offset calibration\n");
     }
     USE_LOOSE=0;
-    USE_KIN=1;
+    USE_KIN=0;
     USELINE=0;
     USE_UWB=1;
     SIM_UWB=1;
@@ -236,7 +236,7 @@ void readParameters(std::string config_file)
     sigma_rt_6dof(3)=sigma_rt_6dof(4)=sigma_rt_6dof(5)=sigma_rt_6dof(6)=0.04;
     sigma_vins_6dof(0)=sigma_vins_6dof(1)=sigma_vins_6dof(2)=0.04;
     sigma_vins_6dof(3)=sigma_vins_6dof(4)=sigma_vins_6dof(5)=sigma_vins_6dof(6)=0.1;
-    USE_EXR=1;
+    USE_EXR=0;
     USE_LONG_WINDOW=0;
     LINK_W=0.04;
     MOVE_W=0.015;

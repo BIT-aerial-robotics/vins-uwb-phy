@@ -1,0 +1,12 @@
+<launch>    
+    
+    <node name="vins_estimator" pkg="vins" type="est_uwb" output="screen"/>
+    <arg name="sequence_1" default = "/home/f404/output/uwb/ue5/4.bag" />
+    <node pkg="rosbag" type="play" name="player" output="log" 
+    args="$(arg sequence_1) -s 5" />
+</launch>
+
+<!-- /imuOne_1:=/vins_1/mavros/imu/data /cam1:=/vins_1/cam1 
+    /imuOne_2:=/vins_2/mavros/imu/data /cam2:=/vins_2/cam2 
+    /imuOne_3:=/vins_3/mavros/imu/data /cam3:=/vins_3/cam3
+    /imuOne_0:=/mavros/imu/data -s 37 -->

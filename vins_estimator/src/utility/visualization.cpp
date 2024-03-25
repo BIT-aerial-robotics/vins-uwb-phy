@@ -85,7 +85,7 @@ void pubLatestOdometry(const Eigen::Vector3d &P, const Eigen::Quaterniond &Q, co
     odometry.twist.twist.linear.x = V.x();
     odometry.twist.twist.linear.y = V.y();
     odometry.twist.twist.linear.z = V.z();
-    pub_latest_odometry.publish(odometry);
+    //pub_latest_odometry.publish(odometry);
     //tmp.getYawAndNorm();
     Eigen::Quaterniond qs=tmp.Rs;
     Eigen::Vector3d ps=tmp.Ps,vs;

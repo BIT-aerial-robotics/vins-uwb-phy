@@ -13,7 +13,7 @@
 
     <node name="cent_estimator" pkg="vins" type="cent_node" output="screen"/>
     <node pkg="rosbag" type="play" name="player" output="log" 
-    args="$(arg sequence_1) -s 15
+    args="$(arg sequence_1) -s 100
     /camera3/image:=/ag3/camera3/image
     /camera4/image:=/ag3/camera4/image
     /camera5/image:=/ag2/camera5/image
@@ -36,7 +36,7 @@
     /pose_0
     /ag0/vins_estimator/imu_propagate
     /imu_0
-    -o /home/f404/output/uwb/ue5/lab0801/" />
+    -o /home/f404/output/uwb/ue5/lab0801_1/" />
 
     <node name="rvizvisualisation" pkg="rviz" type="rviz" output="log" 
     args="-d /home/f404/catkin_tmp/src/VINS-Fusion/config/multi_agent_rviz.rviz" />

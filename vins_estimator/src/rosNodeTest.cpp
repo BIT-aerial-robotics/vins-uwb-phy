@@ -202,10 +202,10 @@ int first_uwb=0;
 // };
 
 Eigen::Vector3d anchor_create_pos[5]={
-    Eigen::Vector3d(-8.17,-4.35,1.38),
-    Eigen::Vector3d(2.93,-6.65,3.3),
-    Eigen::Vector3d(8.76,8.12,1.59),
-    Eigen::Vector3d(-4.48,1.17,1.14)
+    Eigen::Vector3d(-38.17,-34.35,1.38),
+    Eigen::Vector3d(32.93,-36.65,3.3),
+    Eigen::Vector3d(38.76,46.12,1.59),
+    Eigen::Vector3d(-34.48,31.17,1.14)
 };
 const int ANCHORNUMBER=4;
 double getNoiseRandomValue(double dis,Eigen::Vector3d eul)
@@ -232,7 +232,7 @@ double getNoiseRandomValue(double dis,Eigen::Vector3d eul)
         }
     }
     
-    return noisy_value+(dis/1.8)*0.1;//+abs(eul.x())/180*3.14*0.1+abs(eul.y())/180*3.14*0.08+abs(eul.z())/180*3.14*0.5;
+    return noisy_value;//+(dis/1.8)*0.1;//+abs(eul.x())/180*3.14*0.1+abs(eul.y())/180*3.14*0.08+abs(eul.z())/180*3.14*0.5;
 }
 void ground_truth_callback(const nav_msgs::OdometryConstPtr &msg,int idx)
 {
@@ -308,7 +308,7 @@ void ground_truth_callback_2(const geometry_msgs::PoseStampedConstPtr &msg,int i
         data.header=msg->header;
         for(int i=0;i<ANCHORNUMBER;i++){
             double range=(ps-anchor_create_pos[i]).norm();
-            double range2=range+getNoiseRandomValue(range,Utility::R2ypr(rs.toRotationMatrix()));
+            double range2=range+getNoiseRandomValue(range,Utility::R2ypr(rs.toRotationMatrix()))*(AGENT_NUMBER==3?0.4:1);
             bool res=uwb_manager[i].addUWBMeasurements(0,time,range2);
             geometry_msgs::Pose raw_pose;
             raw_pose.position.x=range2;
