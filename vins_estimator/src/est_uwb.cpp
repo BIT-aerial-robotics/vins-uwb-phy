@@ -75,7 +75,7 @@ double alpha[200], para_agent_time[MAX_SOL_LENGTH+200];
 double range_mea[5][MAX_SOL_LENGTH+200][10];
 double para_anchor[5][3];
 double para_anchor_est[5][3];
-double para_bias[5][5][1];
+double para_bias[5][5][2];
 ros::Publisher pub_odometry_frame[4];
 ros::Publisher pub_odometry_value[4];
 Eigen::Vector3d anchor_create_pos[5] = {
@@ -406,6 +406,7 @@ void sync_process()
                         for (int j = 0; j <= 3; j++)
                         {
                             para_bias[i][j][0] = 0;
+                            para_bias[i][j][1]=1.00;
                             // range_mea[i][opt_frame_len][j]/1.8*0.1;
                         }
                     }
@@ -447,11 +448,29 @@ void sync_process()
                     //if(i==2&&j==opt_frame_len-1)
                     //printf("time=%lf (position %lf %lf %lf %lf %lf %lf)  (range=%lf %lf)\n",para_agent_time[j],ps[i][j].x(),ps[i][j].y(),ps[i][j].z(),
                     //para_anchor[k][0],para_anchor[k][1],para_anchor[k][2],range_mea[i][j][k],(ps[i][j]-anchor_create_pos[k]).norm());
-                    UWBFactor_connect_4dof *self_factor = new UWBFactor_connect_4dof(ps[i][j], qs[i][j], pre_calc_hinge[0],range_mea[i][j][k], 0.05);
+                    UWBFactor_connect_4dof_plus_mul *self_factor = new 
+                    UWBFactor_connect_4dof_plus_mul(ps[i][j], qs[i][j], 
+                    pre_calc_hinge[0],range_mea[i][j][k], 0.05);
                     problem.AddResidualBlock(
-                        new ceres::AutoDiffCostFunction<UWBFactor_connect_4dof, 1, 3, 1, 3, 1>(self_factor),
+                        new ceres::AutoDiffCostFunction<UWBFactor_connect_4dof_plus_mul, 1, 3, 1, 3, 2>(self_factor),
                         loss_function,
                         para_pos[i][0], para_yaw[i][0], para_anchor[k], para_bias[i][k]);
+                    
+                }
+                for(int dt=4;dt<=15;dt+=3){
+                    
+                    if(j-dt<0)break;
+                    for(int k=0;k<=3;k++){
+                        int d1=j,d2=j-dt;
+                        UWBFactor_connect_2time_plus_mul *self_factor = new 
+                        UWBFactor_connect_2time_plus_mul(ps[i][d1], qs[i][d1],
+                        ps[i][d2],qs[i][d2],
+                        pre_calc_hinge[0],range_mea[i][d1][k],range_mea[i][d2][k], 0.05);
+                        problem.AddResidualBlock(
+                            new ceres::AutoDiffCostFunction<UWBFactor_connect_2time_plus_mul, 2, 3, 1, 3, 2>(self_factor),
+                            loss_function,
+                            para_pos[i][0], para_yaw[i][0], para_anchor[k], para_bias[i][k]);
+                    }
                 }
             }
         }
@@ -472,12 +491,16 @@ void sync_process()
         {
             for (int k = 0; k <= 3; k++)
             {
-                problem.AddParameterBlock(para_bias[i][k],1);
-                problem.SetParameterBlockConstant(para_bias[i][k]);
-                    // UWBBiasFactor *self_factor = new UWBBiasFactor(para_bias[i][k][0], 0.001);
-                    // problem.AddResidualBlock(
-                    //     new ceres::AutoDiffCostFunction<UWBBiasFactor, 1, 1>(self_factor),
-                    //     NULL, para_bias[i][k]);
+                problem.AddParameterBlock(para_bias[i][k],2);
+                //problem.SetParameterBlockConstant(para_bias[i][k]);
+                problem.SetParameterLowerBound(para_bias[i][k],1,1.03);
+                problem.SetParameterUpperBound(para_bias[i][k],1,1.06);
+                problem.SetParameterLowerBound(para_bias[i][k],0,-0.01);
+                problem.SetParameterUpperBound(para_bias[i][k],0,0.01);
+                UWBBiasFactor *self_factor = new UWBBiasFactor(para_bias[i][k], 0.01);
+                problem.AddResidualBlock(
+                    new ceres::AutoDiffCostFunction<UWBBiasFactor, 2, 2>(self_factor),
+                    NULL, para_bias[i][k]);
             }   
         }
         for (int k = 0; k <= 3; k++)
@@ -498,7 +521,7 @@ void sync_process()
         ceres::Solve(options, &problem, &summary);
         std::cout << summary.BriefReport() << std::endl;
 
-        printf("wdafsufsk  dasflfa");
+        //printf("wdafsufsk  dasflfa");
         if(opt_frame_len>=MAX_SOL_LENGTH){
             // for (int i = 0; i < opt_frame_len - not_memory; i++)
             // {
@@ -550,6 +573,12 @@ void sync_process()
         //     // printf(")");
         //}
         printf("%lf \n",error);
+        for(int i=1;i<=3;i++){
+            for(int j=0;j<=3;j++){
+                printf("%lf %lf ",para_bias[i][j][1],para_bias[i][j][0]);
+            }
+        }
+        printf("\n");
     }
 }
 int main(int argc, char **argv)
@@ -573,9 +602,9 @@ int main(int argc, char **argv)
     }
     if (IMU_PROPAGATE == 1)
     {
-        sub_agent1_pose = n.subscribe<nav_msgs::Odometry>("/ag1/vins_estimator/imu_propagate_noworld", 2000, boost::bind(agent_pose_callback, _1, 1));
-        sub_agent2_pose = n.subscribe<nav_msgs::Odometry>("/ag2/vins_estimator/imu_propagate_noworld", 2000, boost::bind(agent_pose_callback, _1, 2));
-        sub_agent3_pose = n.subscribe<nav_msgs::Odometry>("/ag3/vins_estimator/imu_propagate_noworld", 2000, boost::bind(agent_pose_callback, _1, 3));
+        sub_agent1_pose = n.subscribe<nav_msgs::Odometry>("/ag1/vins_estimator/imu_propagate", 2000, boost::bind(agent_pose_callback, _1, 1));
+        sub_agent2_pose = n.subscribe<nav_msgs::Odometry>("/ag2/vins_estimator/imu_propagate", 2000, boost::bind(agent_pose_callback, _1, 2));
+        sub_agent3_pose = n.subscribe<nav_msgs::Odometry>("/ag3/vins_estimator/imu_propagate", 2000, boost::bind(agent_pose_callback, _1, 3));
     }
     else
     {

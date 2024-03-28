@@ -92,3 +92,6 @@ target_link_libraries(est_uwb vins_lib)
 
 add_executable(dataNode src/dataNode.cpp)
 target_link_libraries(dataNode vins_lib) 
+
+add_executable(dataSol src/dataSol.cpp)
+target_link_libraries(dataSol vins_lib) 

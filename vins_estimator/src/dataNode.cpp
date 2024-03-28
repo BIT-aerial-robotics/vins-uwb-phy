@@ -47,27 +47,27 @@ double getNoiseRandomValue(double dis,Eigen::Vector3d eul)
 {
     double noisy_value = noise_normal_distribution(generator)+noise_uniform_distribution(generator)*0.0;
     double anomaly_probability = noise_uniform_distribution(generator);
-    //noisy_value=0;
+    // noisy_value=0;
     // 如果满足异常概率，引入异常值
-    // if(anomaly_window>0.1)
-    // {
-    //     if(abs(anomaly_probability)*10<anomaly_window){
-    //         double anomaly_magnitude = noise_normal_distribution(generator)*8+noise_uniform_distribution(generator)*8;
-    //         noisy_value += anomaly_magnitude;
-    //     }
-    //     anomaly_window*=0.7;
-    // }
-    // else{
-    //     anomaly_window=0.0;
-    //     if (abs(anomaly_probability) < 0.0010) {
-    //     // 异常值突变，大小和概率均随机
-    //         double anomaly_magnitude = noise_normal_distribution(generator)*8+noise_uniform_distribution(generator)*2.5;
-    //         noisy_value += anomaly_magnitude;
-    //         anomaly_window=1.0;
-    //     }
-    // }
+    if(anomaly_window>0.1)
+    {
+        if(abs(anomaly_probability)*10<anomaly_window){
+            double anomaly_magnitude = noise_normal_distribution(generator)*8+noise_uniform_distribution(generator)*8;
+            noisy_value += anomaly_magnitude;
+        }
+        anomaly_window*=0.7;
+    }
+    else{
+        anomaly_window=0.0;
+        if (abs(anomaly_probability) < 0.0010) {
+        // 异常值突变，大小和概率均随机
+            double anomaly_magnitude = noise_normal_distribution(generator)*8+noise_uniform_distribution(generator)*2.5;
+            noisy_value += anomaly_magnitude;
+            anomaly_window=1.0;
+        }
+    }
     
-    return noisy_value;//+(dis/1.8)*0.1;//+abs(eul.x())/180*3.14*0.1+abs(eul.y())/180*3.14*0.08+abs(eul.z())/180*3.14*0.5;
+    return noisy_value+dis/18;//+(dis/1.8)*0.1;//+abs(eul.x())/180*3.14*0.1+abs(eul.y())/180*3.14*0.08+abs(eul.z())/180*3.14*0.5;
 }
 void ground_truth_callback(const nav_msgs::OdometryConstPtr &msg,int idx)
 {

@@ -1,7 +1,7 @@
 <launch>    
     
     <node name="vins_estimator" pkg="vins" type="est_uwb" output="screen"/>
-    <arg name="sequence_1" default = "/home/f404/output/uwb/ue5/4.bag" />
+    <arg name="sequence_1" default = "/home/f404/output/uwb/ue5/6.bag" />
     <node pkg="rosbag" type="play" name="player" output="log" 
     args="$(arg sequence_1) -s 5" />
 </launch>

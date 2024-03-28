@@ -21,7 +21,7 @@ std::mutex m_buf;
 
 // 设置随机数生成器
 std::default_random_engine generator;
-std::normal_distribution<double> noise_normal_distribution(0.0, 0.09);
+std::normal_distribution<double> noise_normal_distribution(0.0, 0.05);
 std::uniform_real_distribution<double> noise_uniform_distribution(-0.1, 0.1);  // 均匀分布
 ros::Publisher pub_range_raw;
 ros::Publisher pub_range_data;
@@ -232,7 +232,7 @@ double getNoiseRandomValue(double dis,Eigen::Vector3d eul)
         }
     }
     
-    return noisy_value;//+(dis/1.8)*0.1;//+abs(eul.x())/180*3.14*0.1+abs(eul.y())/180*3.14*0.08+abs(eul.z())/180*3.14*0.5;
+    return noisy_value+dis/18;//+abs(eul.x())/180*3.14*0.1+abs(eul.y())/180*3.14*0.08+abs(eul.z())/180*3.14*0.5;
 }
 void ground_truth_callback(const nav_msgs::OdometryConstPtr &msg,int idx)
 {
@@ -281,7 +281,6 @@ void ground_truth_callback(const nav_msgs::OdometryConstPtr &msg,int idx)
         //pub_range_data.publish(data);
     }
     
-    
     //nav_msgs::OdometryConstPtr odomPtr = boost::make_shared<const nav_msgs::Odometry>(odom);
     m_buf.unlock();
 }
@@ -312,7 +311,6 @@ void ground_truth_callback_2(const geometry_msgs::PoseStampedConstPtr &msg,int i
             bool res=uwb_manager[i].addUWBMeasurements(0,time,range2);
             geometry_msgs::Pose raw_pose;
             raw_pose.position.x=range2;
-            
             raw.poses.push_back(raw_pose);
             double dis=uwb_manager[i].uwb_range_sol_data[0].back().range;
             raw_pose.position.y=abs(range-dis);
@@ -519,10 +517,7 @@ int main(int argc, char **argv)
     for(int i=0;i<=3;i++){
         if(SIM_UWB==0)
             sub_uwb_range[i]=n.subscribe<nlink_parser::LinktrackNodeframe2>("/u"+std::to_string(i)+"/nlink_linktrack_nodeframe2", 500, uwb_callback);
-        //sub_uwb_anchor[i]=n.subscribe<geometry_msgs::PoseStamped>("/vrpn_client_node/anchor_Marker"+std::to_string(i+1)+"/pose", 50, 
-        //boost::bind(anchor_call_back,_1,i));
     }
-     
     pub_range_raw=n.advertise<geometry_msgs::PoseArray>("range_raw", 1000);
     pub_range_data=n.advertise<geometry_msgs::PoseArray>("range_sol", 1000);
     ros::Subscriber sub_gt[4];
