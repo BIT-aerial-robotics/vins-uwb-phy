@@ -1,8 +1,19 @@
 # VINS-Fusion
 
-## Tight Fusion of Odometry and Kinematic Constraints for Multiple Aerial Vehicles in Physical Interconnection
-
+## Tight Fusion of Odometry and Kinematic Constraints for Multiple Aerial Vehicles in Physical Interconnection 
 紧耦合物理连接下的多飞行器动力学约束里程计融合
+### 配置文件与参数新增内容
+agent_number:子机编号id(1到3)
+USE_LOOSE:使用松耦合优化的结果
+USE_UWB:使用UWB紧耦合
+USE_KIN使用物理约束紧耦合
+imu_delta_fre两帧图像之间使用新约束的帧数
+HINGE:球铰偏置量
+KIN_LENGTH:球铰之间直线距离
+para_tag:UWB偏置量
+
+### 启动程序
+roslaunch vins xxx.launch(包括启动三个子机节点,数据播放bag)
 ### 物理机械结构
 <img src="support_files/image/SIAP.png" width = 45% height = 55% div align=left />
 <img src="support_files/image/LIAP.png" width = 45% height = 55% div align=center />

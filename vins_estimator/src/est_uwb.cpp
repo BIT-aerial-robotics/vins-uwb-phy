@@ -460,17 +460,17 @@ void sync_process()
                 for(int dt=4;dt<=15;dt+=3){
                     
                     if(j-dt<0)break;
-                    for(int k=0;k<=3;k++){
-                        int d1=j,d2=j-dt;
-                        UWBFactor_connect_2time_plus_mul *self_factor = new 
-                        UWBFactor_connect_2time_plus_mul(ps[i][d1], qs[i][d1],
-                        ps[i][d2],qs[i][d2],
-                        pre_calc_hinge[0],range_mea[i][d1][k],range_mea[i][d2][k], 0.05);
-                        problem.AddResidualBlock(
-                            new ceres::AutoDiffCostFunction<UWBFactor_connect_2time_plus_mul, 2, 3, 1, 3, 2>(self_factor),
-                            loss_function,
-                            para_pos[i][0], para_yaw[i][0], para_anchor[k], para_bias[i][k]);
-                    }
+                    // for(int k=0;k<=3;k++){
+                    //     int d1=j,d2=j-dt;
+                    //     UWBFactor_connect_2time_plus_mul *self_factor = new 
+                    //     UWBFactor_connect_2time_plus_mul(ps[i][d1], qs[i][d1],
+                    //     ps[i][d2],qs[i][d2],
+                    //     pre_calc_hinge[0],range_mea[i][d1][k],range_mea[i][d2][k], 0.05);
+                    //     problem.AddResidualBlock(
+                    //         new ceres::AutoDiffCostFunction<UWBFactor_connect_2time_plus_mul, 2, 3, 1, 3, 2>(self_factor),
+                    //         loss_function,
+                    //         para_pos[i][0], para_yaw[i][0], para_anchor[k], para_bias[i][k]);
+                    // }
                 }
             }
         }

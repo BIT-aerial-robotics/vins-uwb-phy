@@ -248,7 +248,7 @@ struct UWBFactor_connect_2time_plus_mul
     T est_len_1=(bet1.norm()*bias[1]+bias[0])*len2;
     T est_len_2=(bet2.norm()*bias[1]+bias[0])*len1;
     residuals[0]=(est_len_1-est_len_2)/(T(info));
-    residuals[1]=(len1-len2-(bias[1]*(bet1.norm()-bet2.norm())))/(T(info));
+    residuals[1]=(T)5*(len1-len2-(bias[1]*(bet1.norm()-bet2.norm())))/(T(info));
     return true;
   }
   Eigen::Quaterniond ri,rj;
