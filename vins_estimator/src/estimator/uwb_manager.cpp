@@ -56,8 +56,8 @@ void UWBManager::addOdometryMeasurements(Eigen::Vector3d Ps,Eigen::Vector3d Vs,E
 void UWBManager::clearState()
 {
     sigma=0.15;
-    sample=15;
-    RANGE_SIZE=8;
+    sample=8;
+    RANGE_SIZE=5;
     OFFSET_THRESH=0.04;
     publish_smooth_range=true;
     bf=new ButterworthLowPassFilter(5.0,50.0,2);

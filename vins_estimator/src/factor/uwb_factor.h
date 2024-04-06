@@ -2,7 +2,7 @@
 #include <ros/assert.h>
 #include <iostream>
 #include <eigen3/Eigen/Dense>
-
+#include <cmath>
 #include "../utility/utility.h"
 #include "../estimator/parameters.h"
 #include "integration_base.h"
@@ -204,7 +204,9 @@ struct UWBFactor_connect_4dof_plus_mul
     Pi=Yawi*Di+Pi;
     Eigen::Matrix<T,3,1>bet=Pi-Pj;
     T est_len=bet.norm()*bias[1]+bias[0];
+    T logv=(T)log(bias[1])+(T)log(bet.norm())-(T)log(len-bias[0]);
     residuals[0]=(est_len-len)/(T(info));
+    //residuals[1]=(logv)/(T(info));
     return true;
   }
   Eigen::Quaterniond ri,rj;
@@ -242,13 +244,13 @@ struct UWBFactor_connect_2time_plus_mul
     T len2=(T)dis2;
     //len1/len2=beta*(pi-an)+gama/beta*(pj-an)+gama
     //len1-len2=beta*(||pi-an||-||pj-an||)
-    Pi=Yawi*Di+Pi;
     Pj=Yawi*Dj+Pi;
+    Pi=Yawi*Di+Pi;
     Eigen::Matrix<T,3,1>bet1=Pi-An,bet2=Pj-An;
     T est_len_1=(bet1.norm()*bias[1]+bias[0])*len2;
     T est_len_2=(bet2.norm()*bias[1]+bias[0])*len1;
     residuals[0]=(est_len_1-est_len_2)/(T(info));
-    residuals[1]=(T)5*(len1-len2-(bias[1]*(bet1.norm()-bet2.norm())))/(T(info));
+    //residuals[1]=(len1-len2-(bias[1]*(bet1.norm()-bet2.norm())))/(T(info));
     return true;
   }
   Eigen::Quaterniond ri,rj;
@@ -311,4 +313,44 @@ struct UWBFactor_anchor_and_anchor
 };
 
 
+
+
+struct UWBFactor_kin_len
+{
+  UWBFactor_kin_len(Eigen::Vector3d pi,Eigen::Quaterniond qi,
+                    Eigen::Vector3d pj,Eigen::Quaterniond qj,
+                    double para_hinge[],double _dis,double _info)
+  {
+    di=pi;
+    dj=pj;
+    ri=qi;
+    rj=qj;
+    di+=ri.toRotationMatrix()*(Eigen::Vector3d(para_hinge));
+    dj+=rj.toRotationMatrix()*(Eigen::Vector3d(para_hinge));
+    info=_info;
+    dis=_dis;
+  }
+  template <typename T>
+  bool operator()(const T*  pi,const T* yi,const T* pj,const T* yj,T* residuals) const
+  {
+    Eigen::Matrix<T, 3, 1> Pi,Vi,Di,Pj,Dj;
+    for(int i=0;i<3;i++)
+    {
+        Pi(i)=pi[i];
+        Di(i)=(T)di(i);
+        Pj(i)=pj[i];
+        Dj(i)=(T)dj(i);
+    }
+    Eigen::Matrix<T, 3, 3>Yawi=fromYawToMat(yi[0]),Yawj=fromYawToMat(yj[0]);
+    Pi=Yawi*Di+Pi;
+    Pj=Yawj*Dj+Pj;
+    T len=(Pi-Pj).norm();
+    residuals[0]=((T)dis-len)/(T(info));
+    return true;
+  }
+  Eigen::Quaterniond ri,rj;
+  Eigen::Vector3d di,dj,vi,vj;
+  double deltaTime;
+  double info,dis;
+};
 
