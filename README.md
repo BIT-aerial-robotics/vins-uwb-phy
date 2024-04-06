@@ -36,8 +36,10 @@ eg:roslaunch vins realsense_lab1.launch
 
 #### UWB约束
 UWB残差项为:
+
 $$r_{uwb}=|| ||^{W}\mathbf{p}-^{W}\mathbf{p}_{an}||-d ||
 =\\|| ||^{W}_{L}\mathbf{T}^{L}\mathbf{p}-^{W}\mathbf{p}_{an}||-d ||$$
+
 其中$^{W}_{L}\mathbf{T}^{L}$为vio本地坐标系与世界坐标系转换矩阵,通过动捕系统获得,$^{L}\mathbf{p}$为vio本地坐标系下的位置.$^{W}\mathbf{p}_{an}$为UWB锚点在世界系下的位置,通过动捕系统获得.
 #### 物理约束残差
 ### 实验运动轨迹
