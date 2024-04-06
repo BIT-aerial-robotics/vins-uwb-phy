@@ -34,11 +34,28 @@ eg:roslaunch vins realsense_lab1.launch
 
 ### 新加入约束
 
-#### UWB约束
-UWB残差项为:
-https://latex.codecogs.com/svg.image?&space;r_{uwb}=||||^{W}\mathbf{p}-^{W}\mathbf{p}_{an}||-d||=\\||||^{W}_{L}\mathbf{T}^{L}\mathbf{p}-^{W}\mathbf{p}_{an}||-d||
-其中https://latex.codecogs.com/svg.image?^{W}_{L}\mathbf{T}^{L}为vio本地坐标系与世界坐标系转换矩阵,通过动捕系统获得,https://latex.codecogs.com/svg.image?^{W}_{L}\mathbf{T}^{L}为vio本地坐标系下的位置.https://latex.codecogs.com/svg.image?^{W}_{L}\mathbf{T}^{L}^{L}\mathbf{p}^{W}\mathbf{p}_{an}为UWB锚点在世界系下的位置,通过动捕系统获得.
+#### UWB约束残差
+<img src="support_files/image/uwb.png" width = 100% height = 50% div align=left />
+
+<!-- UWB残差项为:
+$$r_{uwb}=|| ||^{W}\mathbf{p}-^{W}\mathbf{p}_{an}||-d ||
+=\\|| ||^{W}_{L}\mathbf{T}^{L}\mathbf{p}-^{W}\mathbf{p}_{an}||-d ||$$
+其中$^{W}_{L}\mathbf{T}^{L}$为vio本地坐标系与世界坐标系转换矩阵,通过动捕系统获得,$^{L}\mathbf{p}$为vio本地坐标系下的位置.$^{W}\mathbf{p}_{an}$为UWB锚点在世界系下的位置,通过动捕系统获得. -->
 #### 物理约束残差
+球铰和相机、IMU相对位置通过前期测量得到,通过vio位置姿态,可以得到球铰在vio本地坐标系和世界坐标系中的表示:
+<img src="support_files/image/sp.png" width = 100% height = 50% div align=left />
+
+球铰之间的欧几里得距离为定值,以此写出位置残差
+<img src="support_files/image/kp.png" width = 100% height = 50% div align=left />
+
+三个球铰的位置和速度可以计算其平面刚体的角速度
+<img src="support_files/image/kv1.png" width = 100% height = 50% div align=left />
+中心平台IMU提供测量角速度,由此写出速度残差
+<img src="support_files/image/kv2.png" width = 100% height = 50% div align=left />
+
+三个球铰位置可以计算其平面刚体姿态与重力平面夹角,以此写出姿态残差
+<img src="support_files/image/kq1.png" width = 100% height = 50% div align=left />
+
 ### 实验运动轨迹
 <img src="support_files/image/Figure_2.png" width = 100% height = 100% div align=left />
 
