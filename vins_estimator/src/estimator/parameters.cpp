@@ -215,10 +215,10 @@ void readParameters(std::string config_file)
         printf("no imu, fix extrinsic param; no time offset calibration\n");
     }
     USE_LOOSE=0;
-    USE_KIN=0;
+    USE_KIN=1;
     USELINE=0;
     USE_UWB=1;
-    SIM_UWB=1;
+    SIM_UWB=0;
     imu_delta_fre=3;
     IMU_SAEM_FRE=1;
     MULAGENT=0;

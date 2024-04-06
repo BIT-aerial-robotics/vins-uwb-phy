@@ -21,7 +21,7 @@ std::mutex m_buf;
 
 // 设置随机数生成器
 std::default_random_engine generator;
-std::normal_distribution<double> noise_normal_distribution(0.0, 0.05);
+std::normal_distribution<double> noise_normal_distribution(0.0, 0.09);
 std::uniform_real_distribution<double> noise_uniform_distribution(-0.1, 0.1);  // 均匀分布
 ros::Publisher pub_range_raw;
 ros::Publisher pub_range_data;
@@ -232,7 +232,7 @@ double getNoiseRandomValue(double dis,Eigen::Vector3d eul)
         }
     }
     
-    return noisy_value+dis/18;//+abs(eul.x())/180*3.14*0.1+abs(eul.y())/180*3.14*0.08+abs(eul.z())/180*3.14*0.5;
+    return noisy_value;//+abs(eul.x())/180*3.14*0.1+abs(eul.y())/180*3.14*0.08+abs(eul.z())/180*3.14*0.5;
 }
 void ground_truth_callback(const nav_msgs::OdometryConstPtr &msg,int idx)
 {
@@ -307,7 +307,7 @@ void ground_truth_callback_2(const geometry_msgs::PoseStampedConstPtr &msg,int i
         data.header=msg->header;
         for(int i=0;i<ANCHORNUMBER;i++){
             double range=(ps-anchor_create_pos[i]).norm();
-            double range2=range+getNoiseRandomValue(range,Utility::R2ypr(rs.toRotationMatrix()))*(AGENT_NUMBER==3?0.4:1);
+            double range2=range+getNoiseRandomValue(range,Utility::R2ypr(rs.toRotationMatrix()));
             bool res=uwb_manager[i].addUWBMeasurements(0,time,range2);
             geometry_msgs::Pose raw_pose;
             raw_pose.position.x=range2;
@@ -349,15 +349,12 @@ void anchor_call_back(const geometry_msgs::PoseStampedConstPtr &msg,int idx)
 int idx_2_idx[]={3,8,1,2};
 void uwb_callback(const nlink_parser::LinktrackNodeframe2ConstPtr &msg)
 {
-    //printf("%d %d\n",idx_2_idx[AGENT_NUMBER],msg->id);
     if(idx_2_idx[AGENT_NUMBER]!=(int)(msg->id))return;
-    //m_buf.lock();
     uint32_t num_nodes = msg->nodes.size();
     nlink_parser::LinktrackNodeframe2 tmp=*msg;
     //遍历 nodes 数组
     geometry_msgs::PoseArray raw,data;
     data.header=msg->header;
-    //printf("\n %lf %d \n",msg->header.stamp.toSec(),(int)(msg->id));
     for (uint32_t i = 0; i < num_nodes; ++i) {
         //获取当前节点
         const nlink_parser::LinktrackNode2& node = msg->nodes[i];
@@ -368,14 +365,9 @@ void uwb_callback(const nlink_parser::LinktrackNodeframe2ConstPtr &msg)
         double dis=uwb_manager[id-4].uwb_range_sol_data[0].back().range;
         if(res){
             estimator.inputRange(id-4,time,dis);
-            //geometry_msgs::Pose data_pose;
-            //data_pose.position.x=dis;
-            //data.poses.push_back(data_pose);
         }
         else{
-            //geometry_msgs::Pose data_pose;
-            //data_pose.position.x=dis;
-            //data.poses.push_back(data_pose);
+            
         }
     }
     //pub_range_data.publish(data);

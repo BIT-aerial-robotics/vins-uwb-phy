@@ -28,19 +28,19 @@ int global_pose=1;
 
 
 int first_uwb=0;
-// Eigen::Vector3d anchor_create_pos[5]={
-//     Eigen::Vector3d(-4.17,-4.35,1.38),
-//     Eigen::Vector3d(2.93,-3.65,1.3),
-//     Eigen::Vector3d(2.76,1.12,1.59),
-//     Eigen::Vector3d(-4.48,1.17,1.14)
-// };
-
 Eigen::Vector3d anchor_create_pos[5]={
-    Eigen::Vector3d(-38.17,-34.35,1.38),
-    Eigen::Vector3d(32.93,-36.65,3.3),
-    Eigen::Vector3d(38.76,46.12,1.59),
-    Eigen::Vector3d(-34.48,31.17,1.14)
+    Eigen::Vector3d(-4.17,-4.35,1.38),
+    Eigen::Vector3d(2.93,-3.65,1.3),
+    Eigen::Vector3d(2.76,1.12,1.59),
+    Eigen::Vector3d(-4.48,1.17,1.14)
 };
+
+// Eigen::Vector3d anchor_create_pos[5]={
+//     Eigen::Vector3d(-38.17,-34.35,1.38),
+//     Eigen::Vector3d(32.93,-36.65,3.3),
+//     Eigen::Vector3d(38.76,46.12,1.59),
+//     Eigen::Vector3d(-34.48,31.17,1.14)
+// };
 const int ANCHORNUMBER=4;
 ros::Publisher pub_odometry_ran[5];
 double getNoiseRandomValue(double dis,Eigen::Vector3d eul)
@@ -105,14 +105,17 @@ void ground_truth_callback_2(const geometry_msgs::PoseStampedConstPtr &msg,int i
     geometry_msgs::PoseStamped tmp2=*msg;
     tf::pointEigenToMsg(camera_ps,tmp2.pose.position);
     nav_msgs::Odometry odo;
+    odo.header=tmp2.header;
+    odo.pose.pose=tmp2.pose;
     double time=msg->header.stamp.toSec();
     for(int i=0;i<ANCHORNUMBER;i++){
         double range=(ps-anchor_create_pos[i]).norm();
         double range2=range+getNoiseRandomValue(range,Utility::R2ypr(rs.toRotationMatrix()));
-        bool res=uwb_manager[idx].addUWBMeasurements(i,time,range2);        
-        double dis=uwb_manager[i].uwb_range_sol_data[0].back().range;
+        bool res=uwb_manager[idx*(ANCHORNUMBER)+i].addUWBMeasurements(0,time,range2);        
+        double dis=uwb_manager[idx*(ANCHORNUMBER)+i].uwb_range_sol_data[0].back().range;
         odo.twist.covariance[i]=dis;
     }
+    pub_odometry_ran[idx].publish(odo);
 }
 
 int main(int argc, char **argv)
@@ -122,7 +125,7 @@ int main(int argc, char **argv)
     ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Info);
 
     ros::Subscriber sub_gt[4];
-    int SIM_UE=1;
+    int SIM_UE=0;
     if(SIM_UE==1){
         sub_gt[3]=n.subscribe<nav_msgs::Odometry>("/pose_2", 2000, boost::bind(ground_truth_callback, _1, 3));
         sub_gt[2]=n.subscribe<nav_msgs::Odometry>("/pose_3", 2000, boost::bind(ground_truth_callback, _1, 2));

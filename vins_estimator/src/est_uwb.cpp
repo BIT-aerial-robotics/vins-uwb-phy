@@ -12,7 +12,7 @@
 #include "factor/marginalization_factor.h"
 
 const int USE_TRUE=1;
-const int USE_SIM = 1;
+const int USE_SIM = 0;
 const int SOL_LENGTH = 100;
 const int MAX_SOL_LENGTH=10000;
 const int IMU_PROPAGATE = 1;
@@ -22,9 +22,9 @@ std::map<double, OdometryVins> pose_agent_buf[5];
 std::map<double, bool> isPub;
 double para_pos[5][MAX_SOL_LENGTH+100][3], para_yaw[5][MAX_SOL_LENGTH+200][1];
 
-double para_HINGE[1] = {0};
+double para_HINGE[3] = {-0.1,0,-0.03};
 double para_LENGTH[1] = {0.841};
-double pre_calc_hinge[1] = {para_HINGE[0]};
+double pre_calc_hinge[3] = {para_HINGE[0],para_HINGE[1],para_HINGE[2]};
 double pre_calc_length[1] = {para_LENGTH[0]};
 double sigma_hyp_loose = 0.01;
 double sigma_length_loose = 0.05;
@@ -76,13 +76,22 @@ double range_mea[5][MAX_SOL_LENGTH+200][10];
 double para_anchor[5][3];
 double para_anchor_est[5][3];
 double para_bias[5][5][2];
+int tag_data_use[4][MAX_SOL_LENGTH+200];
+double para_anchor_bias[5][5][2];
 ros::Publisher pub_odometry_frame[4];
 ros::Publisher pub_odometry_value[4];
-Eigen::Vector3d anchor_create_pos[5] = {
-    Eigen::Vector3d(-38.17,-34.35,1.38),
-    Eigen::Vector3d(32.93,-36.65,3.3),
-    Eigen::Vector3d(38.76,46.12,1.59),
-    Eigen::Vector3d(-34.48,31.17,1.14)};
+Eigen::Vector3d anchor_create_pos[5]={
+    Eigen::Vector3d(-4.17,-4.35,1.38),
+    Eigen::Vector3d(2.93,-3.65,1.3),
+    Eigen::Vector3d(2.76,1.12,1.59),
+    Eigen::Vector3d(-4.48,1.17,1.14)
+};
+
+// Eigen::Vector3d anchor_create_pos[5] = {
+//     Eigen::Vector3d(-38.17,-34.35,1.38),
+//     Eigen::Vector3d(32.93,-36.65,3.3),
+//     Eigen::Vector3d(38.76,46.12,1.59),
+//     Eigen::Vector3d(-34.48,31.17,1.14)};
 std::default_random_engine generator;
 std::normal_distribution<double> noise_normal_distribution(0.0, 0.04);
 
@@ -269,13 +278,16 @@ void alignPoints(MatrixXd& pointsA, MatrixXd& pointsB, Matrix3d& rotation, Vecto
 }
 
 // 计算匹配误差
-double computeError(MatrixXd& pointsA, MatrixXd& pointsB, Matrix3d& rotation, Vector3d& translation) {
+double computeError(MatrixXd& pointsA, MatrixXd& pointsB, Matrix3d& rotation, Vector3d& translation,
+vector<Vector3d>&item) {
     int numPoints = pointsA.rows();
     double error = 0.0;
 
     for (int i = 0; i < numPoints; ++i) {
         Vector3d transformedPoint = rotation * pointsA.row(i).transpose() + translation;
-        error += (transformedPoint - pointsB.row(i).transpose()).squaredNorm();
+        item[i]=transformedPoint - pointsB.row(i).transpose();
+
+        error += (transformedPoint - pointsB.row(i).transpose()).norm();
     }
 
     return error / numPoints;
@@ -286,15 +298,21 @@ void sync_process()
     int sys_cnt = 0;
     int opt_frame_len = 0;
     int faile_num = 0;
+    string filename = "/home/f404/est.csv";
+    
     while (1)
     {
-        if (faile_num > 1000)
-            break;
+        ofstream file(filename,ios::app);
+        // if (faile_num > 1000)
+        //     break;
         TicToc t_sub;
         ros::Rate loop_rate(100);
         loop_rate.sleep();
         m_buf.lock();
-        while(pose_agent_buf[1].size() > 0 && opt_frame_len>5){
+        while(pose_agent_buf[1].size() > 0 && opt_frame_len>5 ){
+            if(pose_agent_buf[1].begin()->first-para_agent_time[opt_frame_len-1]>4){
+                break;
+            }
             if((pose_agent_buf[1].begin()->second.Ps-ps[1][opt_frame_len-1]).norm()<0.1){
                 pose_agent_buf[1].erase(pose_agent_buf[1].begin());
             }
@@ -324,12 +342,17 @@ void sync_process()
             // }
             double time = pose_agent_buf[1].begin()->first;
             OdometryVins ot[4];
-            bool ot_flag[4] = {true, true, false, false};
+            bool ot_flag[4] = {false, true, false, false};
+            tag_data_use[1][opt_frame_len]=1;
             ot_flag[2] = OdometryVins::queryOdometryMap(pose_agent_buf[2], time, ot[2], 0.08);
+            tag_data_use[2][opt_frame_len]=ot_flag[2];
             ot_flag[3] = OdometryVins::queryOdometryMap(pose_agent_buf[3], time, ot[3], 0.08);
-            //ot_flag[0] = OdometryVins::queryOdometryMap(pose_agent_buf[0], time, ot[0], 0.08);
+            tag_data_use[3][opt_frame_len]=ot_flag[3];
+            ot_flag[0] = OdometryVins::queryOdometryMap(pose_agent_buf[0], time, ot[0], 0.08);
+            tag_data_use[0][opt_frame_len]=ot_flag[0];
             bool flag = ot_flag[0] & ot_flag[1] & ot_flag[2] & ot_flag[3];
             ot[1] = pose_agent_buf[1].begin()->second;
+            flag=true;
             if (flag == false)
             {
                 faile_num++;
@@ -369,9 +392,9 @@ void sync_process()
                     // para_yaw[3][opt_frame_len][0] = -120;
 
                     para_anchor[0][0] = 0, para_anchor[0][1] = 0, para_anchor[0][2] = 0;
-                    para_anchor[1][0] = 26.5, para_anchor[1][1] = -0.6, para_anchor[1][2] = 4.5;
-                    para_anchor[2][0] = 6.5, para_anchor[2][1] = 10, para_anchor[2][2] = 4.5;
-                    para_anchor[3][0] = 11.5, para_anchor[3][1] = 13, para_anchor[3][2] = 4.5;
+                    para_anchor[1][0] = 6.5, para_anchor[1][1] = 0.6, para_anchor[1][2] = 0.5;
+                    para_anchor[2][0] = 6.5, para_anchor[2][1] = 6, para_anchor[2][2] = 0.5;
+                    para_anchor[3][0] = 0.5, para_anchor[3][1] = 6, para_anchor[3][2] = 0.5;
 
                     // para_anchor_est[0][0] = 6.5, para_anchor_est[0][1] = -0.6, para_anchor_est[0][2] = 4.5;
                     // para_anchor_est[1][0] = 20.5, para_anchor_est[1][1] = 10, para_anchor_est[1][2] = 4.5;
@@ -414,8 +437,8 @@ void sync_process()
                 alpha[opt_frame_len] = (ot[0].Rs.toRotationMatrix())(2, 2);
                 para_agent_time[opt_frame_len] = time;
                 opt_frame_len++;
-                while (pose_agent_buf[1].size() > 0 && pose_agent_buf[1].begin()->first - time <= 0.04)
-                    pose_agent_buf[1].erase(pose_agent_buf[1].begin());
+                //while (pose_agent_buf[1].size() > 0 && pose_agent_buf[1].begin()->first - time <= 0.04)
+                //    pose_agent_buf[1].erase(pose_agent_buf[1].begin());
                 // if (opt_frame_len >= SOL_LENGTH)
                 //     break;
                 if(opt_frame_len-last_opt_frame_len>5)break;
@@ -437,8 +460,10 @@ void sync_process()
         int not_memory = 5;
         for (int i = 1; i <= 3; i++)
         {
+
             for (int j = 0; j < opt_frame_len; j++)
             {
+                if(tag_data_use[i][j]==0)continue;
                 //problem.AddParameterBlock(para_pos[i][j], 3);
                 //problem.AddParameterBlock(para_yaw[i][j], 1);
                 //problem.SetParameterBlockConstant(para_pos[i][j]);
@@ -455,22 +480,30 @@ void sync_process()
                         new ceres::AutoDiffCostFunction<UWBFactor_connect_4dof_plus_mul, 1, 3, 1, 3, 2>(self_factor),
                         loss_function,
                         para_pos[i][0], para_yaw[i][0], para_anchor[k], para_bias[i][k]);
+                    // UWBFactor_connect_4dof *self_factor = new 
+                    // UWBFactor_connect_4dof(ps[i][j], qs[i][j], 
+                    // pre_calc_hinge[0],range_mea[i][j][k], 0.05);
+                    // //printf("uwb tag an")
+                    // problem.AddResidualBlock(
+                    //     new ceres::AutoDiffCostFunction<UWBFactor_connect_4dof, 1, 3, 1, 3, 2>(self_factor),
+                    //     loss_function,
+                    //     para_pos[i][0], para_yaw[i][0], para_anchor[k], para_bias[i][k]);
                     
                 }
-                for(int dt=4;dt<=15;dt+=3){
+                for(int dt=20;dt<=50;dt+=15){
                     
                     if(j-dt<0)break;
-                    // for(int k=0;k<=3;k++){
-                    //     int d1=j,d2=j-dt;
-                    //     UWBFactor_connect_2time_plus_mul *self_factor = new 
-                    //     UWBFactor_connect_2time_plus_mul(ps[i][d1], qs[i][d1],
-                    //     ps[i][d2],qs[i][d2],
-                    //     pre_calc_hinge[0],range_mea[i][d1][k],range_mea[i][d2][k], 0.05);
-                    //     problem.AddResidualBlock(
-                    //         new ceres::AutoDiffCostFunction<UWBFactor_connect_2time_plus_mul, 2, 3, 1, 3, 2>(self_factor),
-                    //         loss_function,
-                    //         para_pos[i][0], para_yaw[i][0], para_anchor[k], para_bias[i][k]);
-                    // }
+                    for(int k=0;k<=3;k++){
+                        int d1=j,d2=j-dt;
+                        UWBFactor_connect_2time_plus_mul *self_factor = new 
+                        UWBFactor_connect_2time_plus_mul(ps[i][d1], qs[i][d1],
+                        ps[i][d2],qs[i][d2],
+                        pre_calc_hinge[0],range_mea[i][d1][k],range_mea[i][d2][k], 0.2);
+                        problem.AddResidualBlock(
+                            new ceres::AutoDiffCostFunction<UWBFactor_connect_2time_plus_mul, 1, 3, 1, 3, 2>(self_factor),
+                            loss_function,
+                            para_pos[i][0], para_yaw[i][0], para_anchor[k], para_bias[i][k]);
+                    }
                 }
             }
         }
@@ -495,28 +528,40 @@ void sync_process()
                 //problem.SetParameterBlockConstant(para_bias[i][k]);
                 problem.SetParameterLowerBound(para_bias[i][k],1,1.03);
                 problem.SetParameterUpperBound(para_bias[i][k],1,1.06);
-                problem.SetParameterLowerBound(para_bias[i][k],0,-0.01);
-                problem.SetParameterUpperBound(para_bias[i][k],0,0.01);
-                UWBBiasFactor *self_factor = new UWBBiasFactor(para_bias[i][k], 0.01);
-                problem.AddResidualBlock(
-                    new ceres::AutoDiffCostFunction<UWBBiasFactor, 2, 2>(self_factor),
-                    NULL, para_bias[i][k]);
+                problem.SetParameterLowerBound(para_bias[i][k],0,-0.001);
+                problem.SetParameterUpperBound(para_bias[i][k],0,0.001);
+                // UWBBiasFactor *self_factor = new UWBBiasFactor(para_bias[i][k], 0.01);
+                // problem.AddResidualBlock(
+                //     new ceres::AutoDiffCostFunction<UWBBiasFactor, 2, 2>(self_factor),
+                //     NULL, para_bias[i][k]);
             }   
         }
-        for (int k = 0; k <= 3; k++)
-        {
-            // problem.AddParameterBlock(para_anchor[k],3);
-            // //problem.SetParameterBlockConstant(para_anchor[k]);
-            // UWBAnchorFactor *self_factor = new UWBAnchorFactor(para_anchor[k], 1.0 / (log(sys_cnt - 20 + 1) * 0.5 + 1));
-            // problem2.AddResidualBlock(
-            //     new ceres::AutoDiffCostFunction<UWBAnchorFactor, 3, 3>(self_factor),
-            //     NULL, para_anchor[k]);
+        
+        
+        for(int i=1;i<=3;i++){
+            for(int j=1;j<i;j++){
+                for(int k=0;k<opt_frame_len;k++){
+                    if(tag_data_use[i][k]==0||tag_data_use[j][k]==0)continue;
+
+                    UWBFactor_kin_len *self_factor = new 
+                    UWBFactor_kin_len(ps[i][k], qs[i][k], 
+                    ps[j][k],qs[j][k],
+                    pre_calc_hinge,para_LENGTH[0], 0.05);
+                    problem.AddResidualBlock(
+                        new ceres::AutoDiffCostFunction<UWBFactor_kin_len, 1, 3, 1, 3, 1>(self_factor),
+                        loss_function,
+                        para_pos[i][0], para_yaw[i][0], para_pos[j][0],para_yaw[j][0]);
+                }
+            }
+        }
+        for(int k=0;k<opt_frame_len;k++){
+            if(tag_data_use[1][k]==0||tag_data_use[2][k]==0||tag_data_use[3][k]==0||tag_data_use[0][k]==0)continue;     
         }
         ceres::Solver::Options options;
         options.linear_solver_type = ceres::DENSE_SCHUR;
         options.trust_region_strategy_type = ceres::DOGLEG;
-        options.max_solver_time_in_seconds = 0.5;
-        options.max_num_iterations = 20;
+        options.max_solver_time_in_seconds = 1.5;
+        options.max_num_iterations = 60;
         ceres::Solver::Summary summary;
         ceres::Solve(options, &problem, &summary);
         std::cout << summary.BriefReport() << std::endl;
@@ -558,20 +603,31 @@ void sync_process()
         alignPoints(pointsA, pointsB, rotation, translation);
         //printf("allign\n");
         // 计算匹配误差
-        double error = computeError(pointsA, pointsB, rotation, translation);
-        // for(int i=0;i<=3;i++){
-        //     printf("xyz (");
-        //     for(int k=0;k<=2;k++)
-        //     printf("%lf ",para_anchor[i][k]);
-        //     Eigen::Vector3d ap=dq*anchor_create_pos[i]+dp;
-        //     printf("%lf %lf %lf ",para_anchor[i][0]-ap(0),
-        //     para_anchor[i][1]-ap(1),para_anchor[i][2]-ap(2));
-        //     printf(")");
-        //     // printf(") bias (");
-        //     // for(int k=1;k<=3;k++)
-        //     // printf("%lf ",para_bias[k][i][0]);
-        //     // printf(")");
-        //}
+        vector<Eigen::Vector3d> item_error(4,Eigen::Vector3d::Zero());
+        double error = computeError(pointsA, pointsB, rotation, translation,item_error);
+        string con="";
+        con=to_string(para_agent_time[opt_frame_len-1]-para_agent_time[0])+",";
+        for(int i=0;i<4;i++){
+            con=con+to_string(item_error[i].norm())+",";
+            for(int j=0;j<=2;j++)
+            con=con+to_string(item_error[i](j))+",";
+        }
+        con=con+to_string(error)+"\n";
+        file<<con;
+        printf("%d ",opt_frame_len);
+        for(int i=0;i<=3;i++){
+            printf("xyz (");
+            for(int k=0;k<=2;k++)
+            printf("%lf ",para_anchor[i][k]);
+            // Eigen::Vector3d ap=dq*anchor_create_pos[i]+dp;
+            // printf("%lf %lf %lf ",para_anchor[i][0]-ap(0),
+            // para_anchor[i][1]-ap(1),para_anchor[i][2]-ap(2));
+            // printf(")");
+            // printf(") bias (");
+            // for(int k=1;k<=3;k++)
+            // printf("%lf ",para_bias[k][i][0]);
+            // printf(")");
+        }
         printf("%lf \n",error);
         for(int i=1;i<=3;i++){
             for(int j=0;j<=3;j++){
@@ -579,6 +635,7 @@ void sync_process()
             }
         }
         printf("\n");
+        file.close();
     }
 }
 int main(int argc, char **argv)
@@ -595,16 +652,16 @@ int main(int argc, char **argv)
 
     if (USE_SIM)
     {
-        para_HINGE[0] = 0.0;
+        para_HINGE[2] = 0.0;
         para_LENGTH[0] = 0.957;
-        pre_calc_hinge[0] = para_HINGE[0];
+        pre_calc_hinge[2] = para_HINGE[2];
         pre_calc_length[0] = para_LENGTH[0];
     }
     if (IMU_PROPAGATE == 1)
     {
-        sub_agent1_pose = n.subscribe<nav_msgs::Odometry>("/ag1/vins_estimator/imu_propagate", 2000, boost::bind(agent_pose_callback, _1, 1));
-        sub_agent2_pose = n.subscribe<nav_msgs::Odometry>("/ag2/vins_estimator/imu_propagate", 2000, boost::bind(agent_pose_callback, _1, 2));
-        sub_agent3_pose = n.subscribe<nav_msgs::Odometry>("/ag3/vins_estimator/imu_propagate", 2000, boost::bind(agent_pose_callback, _1, 3));
+        sub_agent1_pose = n.subscribe<nav_msgs::Odometry>("/ag1/vins_estimator/imu_propagate_noworld", 2000, boost::bind(agent_pose_callback, _1, 1));
+        sub_agent2_pose = n.subscribe<nav_msgs::Odometry>("/ag2/vins_estimator/imu_propagate_noworld", 2000, boost::bind(agent_pose_callback, _1, 2));
+        sub_agent3_pose = n.subscribe<nav_msgs::Odometry>("/ag3/vins_estimator/imu_propagate_noworld", 2000, boost::bind(agent_pose_callback, _1, 3));
     }
     else
     {

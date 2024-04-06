@@ -100,6 +100,8 @@ void pubLatestOdometry(const Eigen::Vector3d &P, const Eigen::Quaterniond &Q, co
         qs=qs*Q;
         
     }
+    // ps=qs*P+ps;
+    // qs=qs*Q;
     qs.normalize();
     tf::vectorEigenToMsg(W,odometry.twist.twist.angular);
     tf::pointEigenToMsg(ps,odometry.pose.pose.position);
