@@ -27,10 +27,10 @@
     </group>
 
     <node pkg="rosbag" type="play" name="player" output="log" 
-    args="$(arg sequence_1) -s 5 -r 0.4
+    args="$(arg sequence_1) -s 5 -r 0.6
     " />
     <node pkg="rosbag" type="play" name="player2" output="log" 
-    args="$(arg sequence_uwb) -s 6 -r 0.4
+    args="$(arg sequence_uwb) -s 6 -r 0.6
     " />
     <!-- <node name="rvizvisualisation" pkg="rviz" type="rviz" output="log" args="-d /home/f404/catkin_ws/src/VINS-Fusion/config/multi_agent_rviz.rviz" /> -->
     <node pkg="rosbag" type="record" name="bag_record" output="log" args="
@@ -43,6 +43,7 @@
     /vrpn_client_node/anchor_Marker2/pose
     /vrpn_client_node/anchor_Marker3/pose
     /vrpn_client_node/anchor_Marker4/pose
+    /ag1/est_mark /ag2/est_mark /ag3/est_mark
     /u0/nlink_linktrack_nodeframe2
     /u1/nlink_linktrack_nodeframe2
     /u2/nlink_linktrack_nodeframe2

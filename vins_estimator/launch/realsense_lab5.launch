@@ -1,0 +1,63 @@
+<launch>
+
+    <!-- <node name="multi_server" pkg="vins" type="nolinerserver" output="log"/> -->
+    <!-- <arg name="sequence_1" default = "/home/f404/datacol/agent1/2023-03-12-21-12.bag" />
+    <arg name="sequence_2" default = "/home/f404/datacol/agent2/2023-03-12-21-12.bag" />
+    <arg name="sequence_3" default = "/home/f404/datacol/agent3/2023-03-12-21-12.bag" />
+    <arg name="sequence_0" default = "/home/f404/datacol/agent0/2023-03-12-21-12.bag" />
+    <arg name="gt" default = "/home/f404/datacol/gt/2023-03-12-21-12.bag" /> -->
+
+    <!-- <arg name="sequence_1" default = "/home/f404/datacol/agent1/2023-03-12-19-36.bag" />
+    <arg name="sequence_2" default = "/home/f404/datacol/agent2/2023-03-12-19-36.bag" />
+    <arg name="sequence_3" default = "/home/f404/datacol/agent3/2023-03-12-19-36.bag" />
+    
+    <arg name="gt" default = "/home/f404/datacol/gt/2023-03-12-19-36.bag" />
+    <node pkg="rosbag" type="play" name="playergt" output="log" args="$(arg gt)" /> -->
+    
+    <arg name="sequence_1" default = "/home/f404/datacol/realsense/2024-01-17-14-46-04.bag" />
+    <arg name="sequence_uwb" default = "/home/f404/datacol/realsense/uwb/2024-01-17-14-45-55.bag" />
+    <group ns="ag1">
+        <node name="vins_estimator" pkg="vins" type="vins_node" output="screen" args="/home/f404/catkin_tmp/src/VINS-Fusion/config/realsense_d435i_1_1944/realsense_stereo_imu_config.yaml"/>
+    </group>
+    <group ns="ag2">
+        <node name="vins_estimator" pkg="vins" type="vins_node" output="screen" args="/home/f404/catkin_tmp/src/VINS-Fusion/config/realsense_d435i_2_6320/realsense_stereo_imu_config.yaml"/>
+    </group>
+    <group ns="ag3">
+        <node name="vins_estimator" pkg="vins" type="vins_node" output="screen" args="/home/f404/catkin_tmp/src/VINS-Fusion/config/realsense_d435i_3_2454/realsense_stereo_imu_config.yaml"/>
+    </group>
+
+    <node pkg="rosbag" type="play" name="player" output="log" 
+    args="$(arg sequence_1) -s 4 -r 0.6
+    " />
+    <node pkg="rosbag" type="play" name="player2" output="log" 
+    args="$(arg sequence_uwb) -s 13 -r 0.6
+    " />
+    <!-- <node name="rvizvisualisation" pkg="rviz" type="rviz" output="log" args="-d /home/f404/catkin_ws/src/VINS-Fusion/config/multi_agent_rviz.rviz" /> -->
+    <node pkg="rosbag" type="record" name="bag_record" output="log" args="
+    /ag3/vins_estimator/odometry  /ag3/vins_estimator/imu_propagate /ag3/vins_estimator/imu_propagate_noworld /vrpn_client_node/ag3/pose /vrpn_client_node/ag3/twist
+    /ag2/vins_estimator/odometry  /ag2/vins_estimator/imu_propagate /ag2/vins_estimator/imu_propagate_noworld /vrpn_client_node/ag2/pose /vrpn_client_node/ag2/twist
+    /ag1/vins_estimator/odometry  /ag1/vins_estimator/imu_propagate /ag1/vins_estimator/imu_propagate_noworld /vrpn_client_node/ag1/pose /vrpn_client_node/ag1/twist
+    /mavros/imu/data  
+    /vrpn_client_node/ag0/pose /vrpn_client_node/ag0/twist
+    /vrpn_client_node/anchor_Marker1/pose
+    /vrpn_client_node/anchor_Marker2/pose
+    /vrpn_client_node/anchor_Marker3/pose
+    /vrpn_client_node/anchor_Marker4/pose
+    /u0/nlink_linktrack_nodeframe2
+    /u1/nlink_linktrack_nodeframe2
+    /u2/nlink_linktrack_nodeframe2
+    /u3/nlink_linktrack_nodeframe2
+    /ag1/range_sol
+    /ag2/range_sol
+    /ag3/range_sol
+    -o /home/f404/output/uwb/real" />
+    
+
+    <node name="rvizvisualisation" pkg="rviz" type="rviz" output="log" 
+    args="-d /home/f404/catkin_tmp/src/VINS-Fusion/config/multi_agent_rviz.rviz" />
+</launch>
+
+<!-- /imuOne_1:=/vins_1/mavros/imu/data /cam1:=/vins_1/cam1 
+    /imuOne_2:=/vins_2/mavros/imu/data /cam2:=/vins_2/cam2 
+    /imuOne_3:=/vins_3/mavros/imu/data /cam3:=/vins_3/cam3
+    /imuOne_0:=/mavros/imu/data -s 37 -->

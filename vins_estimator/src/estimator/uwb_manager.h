@@ -40,6 +40,12 @@ public:
         }
         return m2_;
     }
+    void clear()
+    {
+        n_=0;
+        mean_=0;
+        m2_=0;
+    }
 
 private:
     int n_;          // 样本数量

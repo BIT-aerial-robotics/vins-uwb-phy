@@ -1,0 +1,23 @@
+<launch>    
+    
+    <node name="vins_estimator" pkg="vins" type="dataNode" output="screen"/>
+    <arg name="sequence_1" default = "/home/f404/datacol/ue/slam_complete-2023120801.bag" />
+    <node pkg="rosbag" type="record" name="bag_record" output="log" args="
+    /ag3/vins_estimator/odometry  /ag3/vins_estimator/imu_propagate /ag3/vins_estimator/imu_propagate_noworld 
+    /ag2/vins_estimator/odometry  /ag2/vins_estimator/imu_propagate /ag2/vins_estimator/imu_propagate_noworld 
+    /ag1/vins_estimator/odometry  /ag1/vins_estimator/imu_propagate /ag1/vins_estimator/imu_propagate_noworld 
+    /pose_2 
+    /pose_3
+    /pose_1
+    /pose_0
+    /ag0/vins_estimator/imu_propagate
+    /imu_0
+    -o /home/f404/output/uwb/ue5/lab0801_1/" />
+    <node pkg="rosbag" type="play" name="player" output="log" 
+    args="$(arg sequence_1) -s 15 --duration=60" />
+</launch>
+
+<!-- /imuOne_1:=/vins_1/mavros/imu/data /cam1:=/vins_1/cam1 
+    /imuOne_2:=/vins_2/mavros/imu/data /cam2:=/vins_2/cam2 
+    /imuOne_3:=/vins_3/mavros/imu/data /cam3:=/vins_3/cam3
+    /imuOne_0:=/mavros/imu/data -s 37 -->

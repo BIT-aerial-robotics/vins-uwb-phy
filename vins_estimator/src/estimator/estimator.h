@@ -241,6 +241,17 @@ class Estimator
 
 
     double para_hinge[3];
+    double para_tag[3];
     double para_length[1];
-    
+
+    OnlineStatistics sta;
+
+    OnlineStatistics uwb_mea_sta[5];
+
+
+
+    std::deque<OdometryVins> Ps_long;
+    std::deque<Eigen::Vector3d> Ps_long_res;
+    double para_Pose_Long[LONG_WINDOW_SIZE][SIZE_POSE];
+    double para_self_len[1];
 };

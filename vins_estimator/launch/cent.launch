@@ -2,7 +2,7 @@
 
     
     
-    <arg name="sequence_1" default = "/home/f404/output/uwb/real_2024-01-20-13-20-37.bag" />
+    <arg name="sequence_1" default = "/home/f404/output/uwb/real_lab_5.bag" />
     <node name="cent_estimator" pkg="vins" type="cent_node" output="screen"/>
     <node pkg="rosbag" type="play" name="player" output="log" 
     args="$(arg sequence_1) -r 2.5" />
@@ -14,8 +14,8 @@
     /ag0/imu_propagate
     -o /home/f404/output/uwb/_cent" />
 
-    <node name="rvizvisualisation" pkg="rviz" type="rviz" output="log" 
-    args="-d /home/f404/catkin_tmp/src/VINS-Fusion/config/multi_agent_rviz.rviz" />
+    <!-- <node name="rvizvisualisation" pkg="rviz" type="rviz" output="log" 
+    args="-d /home/f404/catkin_tmp/src/VINS-Fusion/config/multi_agent_rviz.rviz" /> -->
 </launch>
 
 <!-- /imuOne_1:=/vins_1/mavros/imu/data /cam1:=/vins_1/cam1 

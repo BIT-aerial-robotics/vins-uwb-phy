@@ -1,0 +1,48 @@
+<launch>    
+    <arg name="sequence_1" default = "/home/f404/datacol/ue/slam_complete-2023120801.bag" />
+    <group ns="ag1">
+        <node name="vins_estimator" pkg="vins" type="vins_node" output="screen" args="/home/f404/catkin_tmp/src/VINS-Fusion/config/ue/ue_stereo_imu_config_14.yaml"/>
+    </group>
+    
+    <group ns="ag2">
+        <node name="vins_estimator" pkg="vins" type="vins_node" output="screen" args="/home/f404/catkin_tmp/src/VINS-Fusion/config/ue/ue_stereo_imu_config_25.yaml"/>
+    </group>
+    <group ns="ag3">
+        <node name="vins_estimator" pkg="vins" type="vins_node" output="screen" args="/home/f404/catkin_tmp/src/VINS-Fusion/config/ue/ue_stereo_imu_config_36.yaml"/>
+    </group>
+
+    <node name="cent_estimator" pkg="vins" type="cent_node" output="screen"/>
+    <node pkg="rosbag" type="play" name="player" output="log" 
+    args="$(arg sequence_1) -s 100
+    /camera3/image:=/ag3/camera3/image
+    /camera4/image:=/ag3/camera4/image
+    /camera5/image:=/ag2/camera5/image
+    /camera6/image:=/ag2/camera6/image
+    /camera1/image:=/ag1/camera1/image
+    /camera2/image:=/ag1/camera2/image
+    /imu_2:=/ag3/imu_2
+    /imu_1:=/ag1/imu_1
+    /imu_3:=/ag2/imu_3
+    /imu_0:=/mavros/imu/data -r 0.4 --duration=60
+    " />
+    <!-- <node name="rvizvisualisation" pkg="rviz" type="rviz" output="log" args="-d /home/f404/catkin_ws/src/VINS-Fusion/config/multi_agent_rviz.rviz" /> -->
+    <node pkg="rosbag" type="record" name="bag_record" output="log" args="
+    /ag3/vins_estimator/odometry  /ag3/vins_estimator/imu_propagate /ag3/vins_estimator/imu_propagate_noworld 
+    /ag2/vins_estimator/odometry  /ag2/vins_estimator/imu_propagate /ag2/vins_estimator/imu_propagate_noworld 
+    /ag1/vins_estimator/odometry  /ag1/vins_estimator/imu_propagate /ag1/vins_estimator/imu_propagate_noworld 
+    /pose_2 
+    /pose_3
+    /pose_1
+    /pose_0
+    /ag0/vins_estimator/imu_propagate
+    /imu_0
+    -o /home/f404/output/uwb/ue5/lab0801_1/" />
+
+    <node name="rvizvisualisation" pkg="rviz" type="rviz" output="log" 
+    args="-d /home/f404/catkin_tmp/src/VINS-Fusion/config/multi_agent_rviz.rviz" />
+</launch>
+
+<!-- /imuOne_1:=/vins_1/mavros/imu/data /cam1:=/vins_1/cam1 
+    /imuOne_2:=/vins_2/mavros/imu/data /cam2:=/vins_2/cam2 
+    /imuOne_3:=/vins_3/mavros/imu/data /cam3:=/vins_3/cam3
+    /imuOne_0:=/mavros/imu/data -s 37 -->

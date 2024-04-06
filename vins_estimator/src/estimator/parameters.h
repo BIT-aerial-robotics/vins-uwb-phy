@@ -28,6 +28,7 @@ using namespace std;
 const double FOCAL_LENGTH = 460.0;
 const int LINE_MIN_OBS = 4;
 const int WINDOW_SIZE = 10;
+const int LONG_WINDOW_SIZE=60;
 const int NUM_OF_F = 1000;
 //#define UNIT_SPHERE_ERROR
 
@@ -82,6 +83,13 @@ extern int uwbNum,lowNum;
 extern int FLIGHT_MODE;
 extern Eigen::Vector3d HINGE;
 extern double KIN_LENGTH;
+extern int SIM_UWB;
+extern Eigen::Matrix<double,7,1>sigma_rt_6dof;
+extern Eigen::Matrix<double,7,1>sigma_vins_6dof;
+extern int USE_EXR;
+extern int USE_LONG_WINDOW;
+extern double LINK_W,MOVE_W;
+extern int USE_LOOSE;
 void readParameters(std::string config_file);
 
 enum SIZE_PARAMETERIZATION

@@ -70,7 +70,7 @@ void pubLatestOdometry(const Eigen::Vector3d &P, const Eigen::Quaterniond &Q, co
     odometry.twist.twist.linear.z = V.z();
     pub_latest_odometry.publish(odometry);
 }
-void pubLatestOdometry(const Eigen::Vector3d &P, const Eigen::Quaterniond &Q, const Eigen::Vector3d &V, double t,OdometryVins tmp)
+void pubLatestOdometry(const Eigen::Vector3d &P, const Eigen::Quaterniond &Q, const Eigen::Vector3d &V,const Eigen::Vector3d &W,double t,OdometryVins tmp)
 {
     nav_msgs::Odometry odometry;
     odometry.header.stamp = ros::Time(t);
@@ -85,14 +85,23 @@ void pubLatestOdometry(const Eigen::Vector3d &P, const Eigen::Quaterniond &Q, co
     odometry.twist.twist.linear.x = V.x();
     odometry.twist.twist.linear.y = V.y();
     odometry.twist.twist.linear.z = V.z();
-    pub_latest_odometry.publish(odometry);
+    //pub_latest_odometry.publish(odometry);
     //tmp.getYawAndNorm();
     Eigen::Quaterniond qs=tmp.Rs;
     Eigen::Vector3d ps=tmp.Ps,vs;
-    ps=qs*(P+Q*HINGE)+ps;
-    vs=qs*V;
-    qs=qs*Q;
+    if(USE_LOOSE==0){
+        ps=qs*(P+Q*HINGE)+ps;
+        vs=qs*V;
+        qs=qs*Q;
+    }
+    else{
+        ps=qs*(P)+ps;
+        vs=qs*V;
+        qs=qs*Q;
+        
+    }
     qs.normalize();
+    tf::vectorEigenToMsg(W,odometry.twist.twist.angular);
     tf::pointEigenToMsg(ps,odometry.pose.pose.position);
     tf::quaternionEigenToMsg(qs,odometry.pose.pose.orientation);
     tf::vectorEigenToMsg(vs,odometry.twist.twist.linear);
@@ -191,23 +200,23 @@ void pubOdometry(const Estimator &estimator, const std_msgs::Header &header)
         odometry_world.child_frame_id = "world";
         Eigen::Vector3d imups,p_world=estimator.Ps[WINDOW_SIZE];
         OdometryVins tmp;
-        // bool flag=OdometryVins::queryOdometryMap(estimator.other_RT_map[AGENT_NUMBER],header.stamp.toSec(),tmp,0.5);
-        // if(flag&&estimator.to_world_rt_flag){
-        //     imups=tmp.Ps;
-        //     Eigen::Quaterniond q_world=tmp.Rs*Quaterniond(estimator.Rs[WINDOW_SIZE]);
-        //     q_world.normalize();
-        //     p_world=tmp.Rs.toRotationMatrix()*p_world+imups;
-        //     tf::pointEigenToMsg(p_world,odometry_world.pose.pose.position);
-        //     tf::quaternionEigenToMsg(q_world,odometry_world.pose.pose.orientation);
-        //     for(int i=0;i<=3;i++){
-        //         double dis=(p_world-estimator.UWB_anchor[i]).norm();
-        //         double bias=estimator.para_UWB_bias[i][0];
-        //         printf("idx= %d %lf %lf ",i,dis,bias);
-        //     }printf("\n");
-        //     //pub_odometry_world.publish(odometry_world);
-        //     //Eigen::Vector3d eul=Utility::R2ypr(tmp.Rs.toRotationMatrix());
-        //     //ROS_INFO("%lf %lf %lf %lf %lf %lf",eul[0],eul[1],eul[2],imups.x(),imups.y(),imups.z());
-        // }
+        //bool flag=OdometryVins::queryOdometryMap(estimator.other_RT_map[AGENT_NUMBER],header.stamp.toSec(),tmp,0.5);
+        if(estimator.to_world_rt_flag){
+            imups=estimator.mat_2_world.Ps;
+            //Eigen::Quaterniond q_world=tmp.Rs*Quaterniond(estimator.Rs[WINDOW_SIZE]);
+            // q_world.normalize();
+            // p_world=tmp.Rs.toRotationMatrix()*p_world+imups;
+            // tf::pointEigenToMsg(p_world,odometry_world.pose.pose.position);
+            // tf::quaternionEigenToMsg(q_world,odometry_world.pose.pose.orientation);
+            // for(int i=0;i<=3;i++){
+            //     double dis=(p_world-estimator.UWB_anchor[i]).norm();
+            //     double bias=estimator.para_UWB_bias[i][0];
+            //     printf("idx= %d %lf %lf ",i,dis,bias);
+            // }printf("\n");
+            //pub_odometry_world.publish(odometry_world);
+            //Eigen::Vector3d eul=Utility::R2ypr(estimator.mat_2_world.Rs.toRotationMatrix());
+            //ROS_INFO("%lf %lf %lf %lf %lf %lf",eul[0],eul[1],eul[2],imups.x(),imups.y(),imups.z());
+        }
         nav_msgs::Odometry odometry;
         odometry.header = header;
         odometry.header.frame_id = "world";

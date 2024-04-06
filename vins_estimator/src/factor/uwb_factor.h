@@ -11,19 +11,22 @@
 
 struct UWBBiasFactor
 {
-    UWBBiasFactor(double _bias,double _info)
+    UWBBiasFactor(double _bias[],double _info)
     {
-        old_bias=_bias;
+        old_bias_1=_bias[0];
+        old_bias_2=_bias[1];
         info=_info;
     }
     template <typename T>
     bool operator()(const T* b,T* residuals) const
     {
-        T res=b[0]-(T)old_bias;
+        T res=b[0]-(T)old_bias_1;
         residuals[0]=res/(T)info;
+        res=b[1]-(T)old_bias_2;
+        residuals[1]=res/(T)info;
         return true;
     }
-    double old_bias;
+    double old_bias_1,old_bias_2;
     double info;
 };
 struct UWBAnchorFactor
@@ -55,7 +58,7 @@ struct UwbFactor
     distance=_distance;
   }
   template <typename T>
-  bool operator()(const T*  pi,const T* pj,const T* b,T* residuals) const
+  bool operator()(const T*  pi,const T* pj,const T* b,const T*tag,T* residuals) const
   {
     
     Eigen::Matrix<T, 3, 1> Pi[2],WP[2],OT,dis;
@@ -69,7 +72,7 @@ struct UwbFactor
     for(int i=0;i<=2;i++)for(int j=0;j<=2;j++)WR[0](i,j)=(T)wr[0](i,j);
     Eigen::Quaternion<T> Qi(pi[6],pi[3],pi[4],pi[5]);
     //Pi[0]+=Qi.toRotationMatrix()*Eigen::Matrix<T, 3, 1>((T)0,(T)0,(T)0);
-    Pi[0]=WR[0]*Pi[0]+WP[0];
+    Pi[0]=WR[0]*(Pi[0]+Qi*Eigen::Matrix<T,3,1>(tag))+WP[0];
     
     dis=Pi[1]-Pi[0];
     
@@ -100,7 +103,7 @@ struct UWBFactor_delta
     dt=_dt;
   }
   template <typename T>
-  bool operator()(const T*  pi,const T* vi,const T* pj,const T* b,T* residuals) const
+  bool operator()(const T*  pi,const T* vi,const T* pj,const T* b,const T* tag,T* residuals) const
   {
     
     Eigen::Matrix<T, 3, 1> Pi[2],WP[2],OT,dis,UP,Vi,Uv;
@@ -122,7 +125,7 @@ struct UWBFactor_delta
     Qi=UR*Qi;
     Qi.normalize();
     //Pi[0]+=Qi.toRotationMatrix()*Eigen::Matrix<T, 3, 1>((T)0,(T)0,(T)0.00);
-    Pi[0]=WR[0]*Pi[0]+WP[0];
+    Pi[0]=WR[0]*(Pi[0]+Qi*Eigen::Matrix<T,3,1>(tag))+WP[0];
     
     dis=Pi[1]-Pi[0];
     
@@ -173,6 +176,85 @@ struct UWBFactor_connect_4dof
   Eigen::Vector3d di,dj,vi,vj;
   double deltaTime;
   double info,dis;
+};
+
+
+struct UWBFactor_connect_4dof_plus_mul
+{
+  UWBFactor_connect_4dof_plus_mul(Eigen::Vector3d pi,Eigen::Quaterniond qi,double para_hinge,double _dis,double _info)
+  {
+    di=pi;
+    ri=qi;
+    di+=ri.toRotationMatrix()*(Eigen::Vector3d(0,0,para_hinge));
+    info=_info;
+    dis=_dis;
+  }
+  template <typename T>
+  bool operator()(const T*  pi,const T* yi,const T* pj,const T*bias,T* residuals) const
+  {
+    Eigen::Matrix<T, 3, 1> Pi,Vi,Di,Pj;
+    for(int i=0;i<3;i++)
+    {
+        Pi(i)=pi[i];
+        Di(i)=(T)di(i);
+        Pj(i)=pj[i];
+    }
+    Eigen::Matrix<T, 3, 3>Yawi=fromYawToMat(yi[0]);
+    T len=(T)dis;
+    Pi=Yawi*Di+Pi;
+    Eigen::Matrix<T,3,1>bet=Pi-Pj;
+    T est_len=bet.norm()*bias[1]+bias[0];
+    residuals[0]=(est_len-len)/(T(info));
+    return true;
+  }
+  Eigen::Quaterniond ri,rj;
+  Eigen::Vector3d di,dj,vi,vj;
+  double deltaTime;
+  double info,dis;
+};
+struct UWBFactor_connect_2time_plus_mul
+{
+  UWBFactor_connect_2time_plus_mul(Eigen::Vector3d pi,Eigen::Quaterniond qi,
+  Eigen::Vector3d pj,Eigen::Quaterniond qj,
+  double para_hinge,double _dis1,double _dis2,double _info)
+  {
+    di=pi,dj=pj;
+    ri=qi,rj=qj;
+    di+=ri.toRotationMatrix()*(Eigen::Vector3d(0,0,para_hinge));
+    dj+=rj.toRotationMatrix()*(Eigen::Vector3d(0,0,para_hinge));
+    info=_info;
+    dis1=_dis1;
+    dis2=_dis2;
+  }
+  template <typename T>
+  bool operator()(const T*  pi,const T* yi,const T* an,const T*bias,T* residuals) const
+  {
+    Eigen::Matrix<T, 3, 1> Pi,Vi,Di,Pj,Dj,An;
+    for(int i=0;i<3;i++)
+    {
+        Pi(i)=pi[i];
+        Di(i)=(T)di(i);
+        Dj(i)=(T)dj(i);
+        An(i)=an[i];
+    }
+    Eigen::Matrix<T, 3, 3>Yawi=fromYawToMat(yi[0]);
+    T len1=(T)dis1;
+    T len2=(T)dis2;
+    //len1/len2=beta*(pi-an)+gama/beta*(pj-an)+gama
+    //len1-len2=beta*(||pi-an||-||pj-an||)
+    Pi=Yawi*Di+Pi;
+    Pj=Yawi*Dj+Pi;
+    Eigen::Matrix<T,3,1>bet1=Pi-An,bet2=Pj-An;
+    T est_len_1=(bet1.norm()*bias[1]+bias[0])*len2;
+    T est_len_2=(bet2.norm()*bias[1]+bias[0])*len1;
+    residuals[0]=(est_len_1-est_len_2)/(T(info));
+    residuals[1]=(T)5*(len1-len2-(bias[1]*(bet1.norm()-bet2.norm())))/(T(info));
+    return true;
+  }
+  Eigen::Quaterniond ri,rj;
+  Eigen::Vector3d di,dj,vi,vj;
+  double deltaTime;
+  double info,dis1,dis2;
 };
 struct UWBFactor_connect_pos
 {
@@ -227,3 +309,6 @@ struct UWBFactor_anchor_and_anchor
   double deltaTime;
   double info,dis;
 };
+
+
+
