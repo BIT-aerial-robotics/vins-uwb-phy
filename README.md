@@ -1,4 +1,4 @@
-# VINS-Fusion
+# VINS-Fusion-UWB-PHY
 
 ## Tight Fusion of Odometry and Kinematic Constraints for Multiple Aerial Vehicles in Physical Interconnection 
 紧耦合物理连接下的多飞行器动力学约束里程计融合
@@ -26,10 +26,20 @@ eg:roslaunch vins realsense_lab1.launch
 <img src="support_files/image/SIAP.png" width = 45% height = 55% div align=left />
 <img src="support_files/image/LIAP.png" width = 45% height = 55% div align=center />
 
+
 ### 算法架构
 <img src="support_files/image/sys.png" width = 100% height = 100% div align=left />
 <img src="support_files/image/factor.png" width = 100% height = 50% div align=left />
 
+
+### 新加入约束
+
+#### UWB约束
+UWB残差项为:
+$$r_{uwb}=|| ||^{W}\mathbf{p}-^{W}\mathbf{p}_{an}||-d ||
+=\\|| ||^{W}_{L}\mathbf{T}^{L}\mathbf{p}-^{W}\mathbf{p}_{an}||-d ||$$
+其中$^{W}_{L}\mathbf{T}^{L}$为vio本地坐标系与世界坐标系转换矩阵,通过动捕系统获得,$^{L}\mathbf{p}$为vio本地坐标系下的位置.$^{W}\mathbf{p}_{an}$为UWB锚点在世界系下的位置,通过动捕系统获得.
+#### 物理约束残差
 ### 实验运动轨迹
 <img src="support_files/image/Figure_2.png" width = 100% height = 100% div align=left />
 
@@ -42,7 +52,7 @@ eg:roslaunch vins realsense_lab1.launch
 <img src="support_files/image/res1.png" width = 50% height = 100% div align=left />
 <img src="support_files/image/res2.png" width = 50% height = 100% div align=center />
 
-## An optimization-based multi-sensor state estimator
+## VINS-Fusion An optimization-based multi-sensor state estimator
 
 **Features:**
 - multiple sensors support (stereo cameras / mono camera+IMU / stereo cameras+IMU)
