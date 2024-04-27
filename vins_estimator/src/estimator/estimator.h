@@ -102,7 +102,8 @@ class Estimator
     void inputOtherPose(int id,OdometryVins tmp);
     void save_rt();
     void clearMap();
-    void inputAnchor(int id,OdometryVins tmp);
+    void inputAnchor(int id,OdometryVins tmp,double beta,double gamma);
+    void inputRt(OdometryVins tmp);
     void getIndexByCycle(int &x,int &y){
         if(AGENT_NUMBER==1){
             x=2,y=3;
@@ -254,4 +255,9 @@ class Estimator
     std::deque<Eigen::Vector3d> Ps_long_res;
     double para_Pose_Long[LONG_WINDOW_SIZE][SIZE_POSE];
     double para_self_len[1];
+
+    int use_est_uwb_anchor[5];
+    int use_est_uwb_p1;
+    int use_est_uwb_p2;
+    int use_est_uwb_rt;
 };

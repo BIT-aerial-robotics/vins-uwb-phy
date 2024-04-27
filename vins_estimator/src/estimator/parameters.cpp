@@ -58,6 +58,9 @@ int USE_KIN;
 int uwbNum=0,lowNum=0;
 int FLIGHT_MODE;
 int USE_EXR;
+int ANCHORNUMBER=4;
+int USE_EST_UWB=1;
+int USE_TRUE_NOISE=0;
 Eigen::Vector3d HINGE;
 double KIN_LENGTH;
 Eigen::Matrix<double,7,1>sigma_rt_6dof;
@@ -215,7 +218,7 @@ void readParameters(std::string config_file)
         printf("no imu, fix extrinsic param; no time offset calibration\n");
     }
     USE_LOOSE=0;
-    USE_KIN=1;
+    USE_KIN=0;
     USELINE=0;
     USE_UWB=1;
     SIM_UWB=0;
@@ -224,7 +227,7 @@ void readParameters(std::string config_file)
     MULAGENT=0;
     DEPEND=1;
     AGENT_NUMBER=fsSettings["agent_number"];
-    SIM_UE=1;
+    SIM_UE=0;
     if(AGENT_NUMBER==1){
         uwbNum=3,lowNum=0;
     }

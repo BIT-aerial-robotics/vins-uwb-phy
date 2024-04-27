@@ -1,18 +1,30 @@
 <launch>    
     <arg name="sequence_1" default = "/home/f404/datacol/ue/slam_complete-2023120802.bag" />
     <group ns="ag1">
+        <param name="uwbn" value="0"/>
         <node name="vins_estimator" pkg="vins" type="vins_node" output="screen" args="/home/f404/catkin_tmp/src/VINS-Fusion/config/ue/ue_stereo_imu_config_14.yaml"/>
     </group>
     
     <group ns="ag2">
-        <node name="vins_estimator" pkg="vins" type="vins_node" output="screen" args="/home/f404/catkin_tmp/src/VINS-Fusion/config/ue/ue_stereo_imu_config_25.yaml"/>
+        <param name="uwbn" value="1"/>
+        <node name="vins_estimator" pkg="vins" type="vins_node" output="screen" args="/home/f404/catkin_tmp/src/VINS-Fusion/config/ue/ue_stereo_imu_config_14.yaml"/>
     </group>
     <group ns="ag3">
-        <node name="vins_estimator" pkg="vins" type="vins_node" output="screen" args="/home/f404/catkin_tmp/src/VINS-Fusion/config/ue/ue_stereo_imu_config_36.yaml"/>
+        <param name="uwbn" value="2"/>
+        <node name="vins_estimator" pkg="vins" type="vins_node" output="screen" args="/home/f404/catkin_tmp/src/VINS-Fusion/config/ue/ue_stereo_imu_config_14.yaml"/>
+    </group>
+    <group ns="ag4">
+        <param name="uwbn" value="3"/>
+        <node name="vins_estimator" pkg="vins" type="vins_node" output="screen" args="/home/f404/catkin_tmp/src/VINS-Fusion/config/ue/ue_stereo_imu_config_14.yaml"/>
     </group>
 
-    <node name="cent_estimator" pkg="vins" type="cent_node" output="screen"/>
+
     <node pkg="rosbag" type="play" name="player" output="log" 
+    args="$(arg sequence_1) -s 15
+    /imu_0:=/mavros/imu/data -r 0.25 --duration=80
+    " />
+    <!-- <node name="cent_estimator" pkg="vins" type="cent_node" output="screen"/> -->
+    <!-- <node pkg="rosbag" type="play" name="player" output="log" 
     args="$(arg sequence_1) -s 15
     /camera3/image:=/ag3/camera3/image
     /camera4/image:=/ag3/camera4/image
@@ -23,13 +35,13 @@
     /imu_2:=/ag3/imu_2
     /imu_1:=/ag1/imu_1
     /imu_3:=/ag2/imu_3
-    /imu_0:=/mavros/imu/data -r 0.25 --duration=80
-    " />
+    /imu_0:=/mavros/imu/data -r 0.25 duration=80" /> -->
     <!-- <node name="rvizvisualisation" pkg="rviz" type="rviz" output="log" args="-d /home/f404/catkin_ws/src/VINS-Fusion/config/multi_agent_rviz.rviz" /> -->
     <node pkg="rosbag" type="record" name="bag_record" output="log" args="
     /ag3/vins_estimator/odometry  /ag3/vins_estimator/imu_propagate /ag3/vins_estimator/imu_propagate_noworld 
     /ag2/vins_estimator/odometry  /ag2/vins_estimator/imu_propagate /ag2/vins_estimator/imu_propagate_noworld 
-    /ag1/vins_estimator/odometry  /ag1/vins_estimator/imu_propagate /ag1/vins_estimator/imu_propagate_noworld 
+    /ag1/vins_estimator/odometry  /ag1/vins_estimator/imu_propagate /ag1/vins_estimator/imu_propagate_noworld
+    /ag4/vins_estimator/odometry  /ag4/vins_estimator/imu_propagate /ag4/vins_estimator/imu_propagate_noworld 
     /pose_2 
     /pose_3
     /pose_1

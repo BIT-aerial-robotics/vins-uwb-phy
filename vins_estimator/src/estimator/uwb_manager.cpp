@@ -57,7 +57,7 @@ void UWBManager::clearState()
 {
     sigma=0.15;
     sample=8;
-    RANGE_SIZE=5;
+    RANGE_SIZE=15;
     OFFSET_THRESH=0.04;
     publish_smooth_range=true;
     bf=new ButterworthLowPassFilter(5.0,50.0,2);

@@ -90,6 +90,9 @@ extern int USE_EXR;
 extern int USE_LONG_WINDOW;
 extern double LINK_W,MOVE_W;
 extern int USE_LOOSE;
+extern int ANCHORNUMBER;
+extern int USE_EST_UWB;
+extern int USE_TRUE_NOISE;
 void readParameters(std::string config_file);
 
 enum SIZE_PARAMETERIZATION

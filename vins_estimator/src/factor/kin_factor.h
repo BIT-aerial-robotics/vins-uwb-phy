@@ -645,7 +645,7 @@ struct kinFactor_connect_hyp_4dof_tight_delta
     z_val = _z_val;
   }
   template <typename T>
-  bool operator()(const T *pi, const T *pj, const T *pk, const T *hinge, T *residuals) const
+  bool operator()(const T *pi, const T* vi,const T *pj, const T *pk, const T *hinge, T *residuals) const
   {
 
     Eigen::Matrix<T, 3, 1> Pi[3], WP[3], OT, dis, UP, Vi, Uv;
@@ -658,6 +658,7 @@ struct kinFactor_connect_hyp_4dof_tight_delta
       UP(i) = (T)dp(i);
       Pi[1](i) = pj[i];
       Pi[2](i) = pk[i];
+      Vi(i)=vi[i];
     }
     Eigen::Matrix<T, 3, 3> WR[3], UR;
     for (int i = 0; i <= 2; i++)
@@ -668,7 +669,8 @@ struct kinFactor_connect_hyp_4dof_tight_delta
     Qi[2] = Eigen::Quaternion<T>{fromYawToMat(pk[3])};
     Qi[0] = Eigen::Quaternion<T>(pi[6], pi[3], pi[4], pi[5]);
     Qi[0].normalize();
-    Pi[0] += (T)(1.0) * (Qi[0] * UP);
+    T sum_dt=(T)dt;
+    Pi[0] += (T)(1.0) * (Qi[0] * UP)+Vi*sum_dt-0.5*G*sum_dt*sum_dt;
     Qi[0] = UR * Qi[0];
     Qi[0].normalize();
     Pi[0] = WR[0] * (Pi[0] + Qi[0] * Eigen::Matrix<T, 3, 1>(hinge)) + WP[0];

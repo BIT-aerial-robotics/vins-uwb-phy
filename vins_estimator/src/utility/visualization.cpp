@@ -264,8 +264,9 @@ void pubOdometry(const Estimator &estimator, const std_msgs::Header &header)
               << estimator.Vs[WINDOW_SIZE].z() << "," << endl;
         foutC.close();
         Eigen::Vector3d tmp_T = estimator.Ps[WINDOW_SIZE];
-        printf("time: %f, t: %f %f %f q: %f %f %f %f %lf\n", header.stamp.toSec(), tmp_T.x(), tmp_T.y(), tmp_T.z(),
-                                                          tmp_Q.w(), tmp_Q.x(), tmp_Q.y(), tmp_Q.z(),estimator.para_UWB_bias[0][0]);
+        printf("time: %f, t: %f %f %f q: %f %f %f %f %d %d %d %d\n", header.stamp.toSec(), tmp_T.x(), tmp_T.y(), tmp_T.z(),
+                                                          tmp_Q.w(), tmp_Q.x(), tmp_Q.y(), tmp_Q.z(),estimator.use_est_uwb_p1,
+                                                          estimator.use_est_uwb_p2,estimator.use_est_uwb_rt,estimator.to_world_rt_flag);
     }
 }
 

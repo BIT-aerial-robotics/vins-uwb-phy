@@ -23,6 +23,9 @@ Follow [OpenCV Installation](https://github.com/opencv/opencv).
 ### **nlink_parser**
 Follow [nlink_parser Installation](https://github.com/nooploop-dev/nlink_parser).
 
+
+### **GTSAM**
+Follow [GTSAM Installation](https://github.com/borglab/gtsam).
 ## 配置文件与参数新增内容
 ```
 agent_number:子机编号id(1到3)

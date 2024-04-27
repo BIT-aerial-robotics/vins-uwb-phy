@@ -194,20 +194,21 @@ void feature_callback(const sensor_msgs::PointCloudConstPtr &feature_msg)
 
 
 int first_uwb=0;
-// Eigen::Vector3d anchor_create_pos[5]={
-//     Eigen::Vector3d(-4.17,-4.35,1.38),
-//     Eigen::Vector3d(2.93,-3.65,1.3),
-//     Eigen::Vector3d(2.76,1.12,1.59),
-//     Eigen::Vector3d(-4.48,1.17,1.14)
-// };
-
 Eigen::Vector3d anchor_create_pos[5]={
-    Eigen::Vector3d(-38.17,-34.35,1.38),
-    Eigen::Vector3d(32.93,-36.65,3.3),
-    Eigen::Vector3d(38.76,46.12,1.59),
-    Eigen::Vector3d(-34.48,31.17,1.14)
+    Eigen::Vector3d(-4.17,-4.35,1.38),
+    Eigen::Vector3d(2.93,-3.65,1.3),
+    Eigen::Vector3d(2.76,1.12,1.59),
+    Eigen::Vector3d(-4.48,1.17,1.14)
 };
-const int ANCHORNUMBER=4;
+
+// Eigen::Vector3d anchor_create_pos[6]={
+//     Eigen::Vector3d(-38.17,-34.35,1.38),
+//     Eigen::Vector3d(32.93,-36.65,3.3),
+//     Eigen::Vector3d(38.76,46.12,1.59),
+//     Eigen::Vector3d(-34.48,31.17,1.14),
+//     Eigen::Vector3d(-4.48,1.17,3.14)
+// };
+//const int ANCHORNUMBER=5;
 double getNoiseRandomValue(double dis,Eigen::Vector3d eul)
 {
     double noisy_value = noise_normal_distribution(generator)+noise_uniform_distribution(generator)*0.0;
@@ -334,15 +335,30 @@ void ground_truth_callback_2(const geometry_msgs::PoseStampedConstPtr &msg,int i
         estimator.inputOtherPose(idx,tmp);
     }
 }
-void anchor_call_back(const geometry_msgs::PoseStampedConstPtr &msg,int idx)
+void anchor_call_back(const nav_msgs::OdometryConstPtr &msg,int idx)
 {
     //m_buf.lock();
+    printf("anchor_call_back\n");
+    Eigen::Vector3d ps,vs,ws;
+    Eigen::Quaterniond rs;
+    tf::pointMsgToEigen(msg->pose.pose.position, ps);
+    tf::quaternionMsgToEigen(msg->pose.pose.orientation,rs);
+    double beta=msg->twist.covariance[(AGENT_NUMBER-1)*2+1];
+    double gamma=msg->twist.covariance[(AGENT_NUMBER-1)*2+0];
+    OdometryVins tmp(ps,rs,msg->header.stamp.toSec());
+    estimator.inputAnchor(idx,tmp,beta,gamma);
+    //m_buf.unlock();
+}
+void rt_call_back(const geometry_msgs::PoseStampedConstPtr &msg)
+{
+    //m_buf.lock();
+    printf("rt _ call _ back\n");
     Eigen::Vector3d ps,vs,ws;
     Eigen::Quaterniond rs;
     tf::pointMsgToEigen(msg->pose.position, ps);
     tf::quaternionMsgToEigen(msg->pose.orientation,rs);
     OdometryVins tmp(ps,rs,msg->header.stamp.toSec());
-    estimator.inputAnchor(idx,tmp);
+    estimator.inputRt(tmp);
     //m_buf.unlock();
 }
 
@@ -549,9 +565,12 @@ int main(int argc, char **argv)
     }
     sub_self_odometry[0]=n.subscribe<sensor_msgs::Imu>("/mavros/imu/data",200,center_imu_callback);
 
-    if(SIM_UE==1){
-        
+    ros::Subscriber sub_uwb_anchor_pose[5],self_rt_world;
+    for(int i=0;i<ANCHORNUMBER;i++){
+        sub_uwb_anchor_pose[i]=n.subscribe<nav_msgs::Odometry>("/anchor_pos"+std::to_string(i),500,boost::bind(anchor_call_back,_1,i));
     }
+    ///ag2/rt_world
+    self_rt_world=n.subscribe<geometry_msgs::PoseStamped>("/ag"+std::to_string(AGENT_NUMBER)+"/rt_world",500,rt_call_back);
     std::thread sync_thread{sync_process};
     ros::spin();
 

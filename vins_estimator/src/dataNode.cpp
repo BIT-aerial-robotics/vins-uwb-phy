@@ -41,7 +41,7 @@ Eigen::Vector3d anchor_create_pos[5]={
 //     Eigen::Vector3d(38.76,46.12,1.59),
 //     Eigen::Vector3d(-34.48,31.17,1.14)
 // };
-const int ANCHORNUMBER=4;
+//const int ANCHORNUMBER=4;
 ros::Publisher pub_odometry_ran[5];
 double getNoiseRandomValue(double dis,Eigen::Vector3d eul)
 {
@@ -117,7 +117,49 @@ void ground_truth_callback_2(const geometry_msgs::PoseStampedConstPtr &msg,int i
     }
     pub_odometry_ran[idx].publish(odo);
 }
+std::default_random_engine generator3;
+std::normal_distribution<double> distribution3(0.0,0.1);
+class ImuNoisePublisher {
+public:
+    ImuNoisePublisher() : nh("~") {
+        // 获取ROS参数
+        //nh.param<std::string>("imu_topic", imu_topic, "/imu_topic");
+        //nh.param<double>("orientation_noise_stddev", orientation_noise_stddev, 0.01);
 
+        // 订阅IMU话题
+        imu_sub = nh.subscribe("/imu_0", 1, &ImuNoisePublisher::imuCallback, this);
+        noise_val=Eigen::Quaterniond::Identity();
+        // 发布噪声IMU数据
+        noisy_imu_pub = nh.advertise<sensor_msgs::Imu>("/imu_0_n", 1);
+    }
+
+    void imuCallback(const sensor_msgs::Imu::ConstPtr& msg) {
+        sensor_msgs::Imu noisy_imu = *msg;
+        Eigen::Quaterniond q;
+        tf::quaternionMsgToEigen(noisy_imu.orientation,q);
+        addNoiseToQuaternion(q, orientation_noise_stddev);
+        tf::quaternionEigenToMsg(q,noisy_imu.orientation);
+        noisy_imu_pub.publish(noisy_imu);
+    }
+
+    void addNoiseToQuaternion(Eigen::Quaterniond & quat, double stddev) {
+        
+        Eigen::Quaterniond tmp{Utility::ypr2R(Eigen::Vector3d(distribution3(generator3),distribution3(generator3)*0.5,distribution3(generator3)*0.5))};
+        noise_val=tmp*noise_val;
+        // 在四元数的x、y、z、w分量上添加高斯噪声
+        tmp=Eigen::Quaterniond{Utility::ypr2R(Eigen::Vector3d(distribution3(generator3)*0.1,distribution3(generator3)*0.1,distribution3(generator3)*0.1))};
+        quat=tmp*noise_val*quat;
+        quat.normalize();
+    }
+
+private:
+    ros::NodeHandle nh;
+    ros::Subscriber imu_sub;
+    ros::Publisher noisy_imu_pub;
+    std::string imu_topic;
+    double orientation_noise_stddev;
+    Eigen::Quaterniond noise_val;
+};
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "vins_estimator");
@@ -125,27 +167,28 @@ int main(int argc, char **argv)
     ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Info);
 
     ros::Subscriber sub_gt[4];
-    int SIM_UE=0;
-    if(SIM_UE==1){
-        sub_gt[3]=n.subscribe<nav_msgs::Odometry>("/pose_2", 2000, boost::bind(ground_truth_callback, _1, 3));
-        sub_gt[2]=n.subscribe<nav_msgs::Odometry>("/pose_3", 2000, boost::bind(ground_truth_callback, _1, 2));
-        sub_gt[1]=n.subscribe<nav_msgs::Odometry>("/pose_1", 2000, boost::bind(ground_truth_callback, _1, 1));
-    }
-    else{
-        for(int i=1;i<=3;i++){
-            sub_gt[i]=n.subscribe<geometry_msgs::PoseStamped>("/vrpn_client_node/ag"
-            +to_string(i)+"/pose", 2000, boost::bind(ground_truth_callback_2, _1, i));
-        }
+    ImuNoisePublisher imu_noise_publisher;
+    // int SIM_UE=0;
+    // if(SIM_UE==1){
+    //     sub_gt[3]=n.subscribe<nav_msgs::Odometry>("/pose_2", 2000, boost::bind(ground_truth_callback, _1, 3));
+    //     sub_gt[2]=n.subscribe<nav_msgs::Odometry>("/pose_3", 2000, boost::bind(ground_truth_callback, _1, 2));
+    //     sub_gt[1]=n.subscribe<nav_msgs::Odometry>("/pose_1", 2000, boost::bind(ground_truth_callback, _1, 1));
+    // }
+    // else{
+    //     for(int i=1;i<=3;i++){
+    //         sub_gt[i]=n.subscribe<geometry_msgs::PoseStamped>("/vrpn_client_node/ag"
+    //         +to_string(i)+"/pose", 2000, boost::bind(ground_truth_callback_2, _1, i));
+    //     }
         
-    }
-    for(int i=1;i<=3;i++){
-        pub_odometry_ran[i] = n.advertise<nav_msgs::Odometry>("/ag"+to_string(i)+"/vins_estimator/imu_propagate", 1000);
-    }
-    vector<Eigen::Vector3d>tmp;
-    for(int i=0;i<ANCHORNUMBER;i++)tmp.push_back(anchor_create_pos[i]);
-    for(int i=0;i<=19;i++){
-        uwb_manager[i]=UWBManager(4,tmp);
-    }
+    // }
+    // for(int i=1;i<=3;i++){
+    //     pub_odometry_ran[i] = n.advertise<nav_msgs::Odometry>("/ag"+to_string(i)+"/vins_estimator/imu_propagate", 1000);
+    // }
+    // vector<Eigen::Vector3d>tmp;
+    // for(int i=0;i<ANCHORNUMBER;i++)tmp.push_back(anchor_create_pos[i]);
+    // for(int i=0;i<=19;i++){
+    //     uwb_manager[i]=UWBManager(4,tmp);
+    // }
     ros::spin();
 
     return 0;

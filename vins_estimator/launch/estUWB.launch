@@ -1,9 +1,28 @@
 <launch>    
     
     <node name="vins_estimator" pkg="vins" type="est_uwb" output="screen"/>
-    <arg name="sequence_1" default = "/home/f404/output/uwb/ue5/10.bag" />
+    <arg name="sequence_1" default = "/home/f404/output/uwb/real/est_uwb/lab1/_2024-04-22-21-02-48.bag" />
     <node pkg="rosbag" type="play" name="player" output="log" 
-    args="$(arg sequence_1) -s 5" />
+    args="$(arg sequence_1) -s 2" />
+
+    <node pkg="rosbag" type="record" name="bag_record2" output="log" args="
+    /anchor_pos0
+    /anchor_pos1
+    /anchor_pos2
+    /anchor_pos3
+    /ag1/rt_world
+    /ag2/rt_world
+    /ag3/rt_world
+    /ag1/calib_pose
+    /ag2/calib_pose
+    /ag3/calib_pose
+    /vrpn_client_node/ag1_Marker1/pose
+    /vrpn_client_node/ag2_Marker1/pose
+    /vrpn_client_node/ag3_Marker1/pose
+    /vrpn_client_node/ag3/pose 
+    /vrpn_client_node/ag2/pose 
+    /vrpn_client_node/ag1/pose 
+    -o /home/f404/output/uwb/real/est_uwb/lab1/err0.2" />
 </launch>
 
 <!-- /imuOne_1:=/vins_1/mavros/imu/data /cam1:=/vins_1/cam1 
