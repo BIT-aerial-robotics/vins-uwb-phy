@@ -8,7 +8,7 @@ OdometryVins OdometryVins::interpolation(OdometryVins nx,double t)
     tmp.time=t;
     double t1=time,t2=nx.time;
     tmp.Vs=Vs+((nx.Vs-Vs)/(t2-t1))*(t-t1);
-    tmp.Ps=Ps+0.85*((nx.Ps-Ps)/(t2-t1))*(t-t1)+0.15*(tmp.Vs+Vs)*0.5*(t-t1);
+    tmp.Ps=Ps+1*((nx.Ps-Ps)/(t2-t1))*(t-t1)+0.00*(tmp.Vs+Vs)*0.5*(t-t1);
     tmp.Ws=Ws+((nx.Ws-Ws)/(t2-t1))*(t-t1);
     tmp.Rs = Rs;
     tmp.Rs=tmp.Rs.slerp((t - t1) / (t2 - t1), nx.Rs);

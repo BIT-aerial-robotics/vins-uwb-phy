@@ -317,21 +317,21 @@ void sync_process()
         ros::Rate loop_rate(100);
         loop_rate.sleep();
         m_buf.lock();
-        while (pose_agent_buf[1].size() > 0 && opt_frame_len > 5)
-        {
-            if (pose_agent_buf[1].begin()->first - para_agent_time[opt_frame_len - 1] > 4)
-            {
-                break;
-            }
-            if ((pose_agent_buf[1].begin()->second.Ps - ps[1][opt_frame_len - 1]).norm() < 0.005)
-            {
-                pose_agent_buf[1].erase(pose_agent_buf[1].begin());
-            }
-            else
-            {
-                break;
-            }
-        }
+        // while (pose_agent_buf[1].size() > 0 && opt_frame_len > 5)
+        // {
+        //     if (pose_agent_buf[1].begin()->first - para_agent_time[opt_frame_len - 1] > 4)
+        //     {
+        //         break;
+        //     }
+        //     if ((pose_agent_buf[1].begin()->second.Ps - ps[1][opt_frame_len - 1]).norm() < 0.005)
+        //     {
+        //         pose_agent_buf[1].erase(pose_agent_buf[1].begin());
+        //     }
+        //     else
+        //     {
+        //         break;
+        //     }
+        // }
         while (pose_agent_buf[1].size() > 0 && pose_agent_buf[2].size() > 0 && pose_agent_buf[2].begin()->first - pose_agent_buf[1].begin()->first > 1)
         {
             pose_agent_buf[1].erase(pose_agent_buf[1].begin());
@@ -354,11 +354,11 @@ void sync_process()
             OdometryVins ot[4];
             bool ot_flag[4] = {false, true, false, false};
             tag_data_use[1][opt_frame_len] = 1;
-            ot_flag[2] = OdometryVins::queryOdometryMap(pose_agent_buf[2], time, ot[2], 0.08);
+            ot_flag[2] = OdometryVins::queryOdometryMap(pose_agent_buf[2], time, ot[2], 0.03);
             tag_data_use[2][opt_frame_len] = ot_flag[2];
-            ot_flag[3] = OdometryVins::queryOdometryMap(pose_agent_buf[3], time, ot[3], 0.08);
+            ot_flag[3] = OdometryVins::queryOdometryMap(pose_agent_buf[3], time, ot[3], 0.03);
             tag_data_use[3][opt_frame_len] = ot_flag[3];
-            ot_flag[0] = OdometryVins::queryOdometryMap(pose_agent_buf[0], time, ot[0], 0.08);
+            ot_flag[0] = OdometryVins::queryOdometryMap(pose_agent_buf[0], time, ot[0], 0.03);
             tag_data_use[0][opt_frame_len] = ot_flag[0];
             bool flag = ot_flag[0] & ot_flag[1] & ot_flag[2] & ot_flag[3];
             ot[1] = pose_agent_buf[1].begin()->second;
@@ -392,13 +392,13 @@ void sync_process()
                     // para_pos[1][opt_frame_len][2] = 0;
                     // para_yaw[1][opt_frame_len][0] = 0;
 
-                    para_pos[2][opt_frame_len][0] = -0.828 ;
-                    para_pos[2][opt_frame_len][1] = 0.478;
+                    para_pos[2][opt_frame_len][0] = -0.728 ;
+                    para_pos[2][opt_frame_len][1] = 0.420;
                     para_pos[2][opt_frame_len][2] = 0;
                     para_yaw[2][opt_frame_len][0] = 120;
 
-                    para_pos[3][opt_frame_len][0] = 0.478;
-                    para_pos[3][opt_frame_len][1] = -0.828;
+                    para_pos[3][opt_frame_len][0] = -0.728;
+                    para_pos[3][opt_frame_len][1] = -0.420;
                     para_pos[3][opt_frame_len][2] = 0;
                     para_yaw[3][opt_frame_len][0] = -120;
 
@@ -452,7 +452,7 @@ void sync_process()
                     pose_agent_buf[1].erase(pose_agent_buf[1].begin());
                 //  if (opt_frame_len >= SOL_LENGTH)
                 //      break;
-                if (opt_frame_len - last_opt_frame_len > 5)
+                if (opt_frame_len - last_opt_frame_len > 2)
                     break;
             }
         }
@@ -478,7 +478,7 @@ void sync_process()
             ceres::LossFunction *loss_function;
             loss_function = new ceres::HuberLoss(1.0);
             int upperIdx=opt_frame_len;
-            int lowerIdx=max(0,upperIdx-150);
+            int lowerIdx=max(0,upperIdx-100);
             for (int i = 1; i <= 3; i++)
             {
                 for (int k = lowerIdx+1; k < upperIdx; k++)
@@ -498,6 +498,8 @@ void sync_process()
                         para_pos[i][k], para_yaw[i][k]);
                 }
             }
+            int len_res_num=0;
+            int att_res_num=0;
             for (int i = 1; i <= 3; i++)
             {
                 for (int j = 1; j < i; j++)
@@ -509,11 +511,12 @@ void sync_process()
 
                         UWBFactor_kin_len *self_factor = new UWBFactor_kin_len(ps[i][k], qs[i][k],
                                                                                ps[j][k], qs[j][k],
-                                                                               pre_calc_hinge, para_LENGTH[0], 0.05);
+                                                                               pre_calc_hinge, para_LENGTH[0], 0.04);
                         problem.AddResidualBlock(
                             new ceres::AutoDiffCostFunction<UWBFactor_kin_len, 1, 3, 1, 3, 1>(self_factor),
                             loss_function,
                             para_pos[i][k], para_yaw[i][k], para_pos[j][k], para_yaw[j][k]);
+                        len_res_num+=1;
                     }
                 }
                 // problem.AddParameterBlock(para_pos[i][0],3);
@@ -532,17 +535,23 @@ void sync_process()
                     loss_function,
                     para_pos[1][k], para_yaw[1][k], para_pos[2][k], para_yaw[2][k],
                     para_pos[3][k], para_yaw[3][k]);
+                att_res_num+=1;
             }
             problem.SetParameterBlockConstant(para_pos[1][lowerIdx]);
             problem.SetParameterBlockConstant(para_yaw[1][lowerIdx]);
+            problem.SetParameterBlockConstant(para_pos[2][lowerIdx]);
+            problem.SetParameterBlockConstant(para_yaw[2][lowerIdx]);
+            problem.SetParameterBlockConstant(para_pos[3][lowerIdx]);
+            problem.SetParameterBlockConstant(para_yaw[3][lowerIdx]);
             ceres::Solver::Options options;
             options.linear_solver_type = ceres::DENSE_SCHUR;
             options.trust_region_strategy_type = ceres::DOGLEG;
-            options.max_solver_time_in_seconds = 0.5;
-            options.max_num_iterations = 8;
+            options.max_solver_time_in_seconds = 1.5;
+            options.max_num_iterations = 16;
             ceres::Solver::Summary summary;
             ceres::Solve(options, &problem, &summary);
-            //std::cout << summary.BriefReport() << std::endl;
+            std::cout << summary.BriefReport() << std::endl;
+            std::cout<<len_res_num<<"  "<<att_res_num<<"  "<<para_agent_time[upperIdx-1]-para_agent_time[lowerIdx]<<std::endl;
         }
 
         
@@ -550,7 +559,7 @@ void sync_process()
 
 
 
-        if (opt_frame_len>300&&0)
+        if (opt_frame_len>300)
         {
             ceres::Problem problem2;
             ceres::LossFunction *loss_function;
@@ -848,7 +857,7 @@ void sync_process()
             ROS_INFO("(%lf %lf %lf %lf)", para_pos[j][opt_frame_len - 1][0], para_pos[j][opt_frame_len - 1][1],
                      para_pos[j][opt_frame_len - 1][2], para_yaw[j][opt_frame_len - 1][0]);
         }
-        if (error <= 0.16&&anchor_error<=0.12)
+        if (error <= 0.1&&anchor_error<=0.08)
         {
             ROS_INFO("begin cout matrix and anchor");
             for (int i = 0; i < ANCHORNUMBER; i++)
@@ -874,7 +883,7 @@ void sync_process()
                 tf::quaternionEigenToMsg(q,rt_world.pose.orientation);
                 pub_ag_rt[i].publish(rt_world);
             }
-            //break;
+            break;
         }
         for(int i=1;i<=3;i++){
             geometry_msgs::PoseStamped rt_world;
@@ -898,10 +907,10 @@ int main(int argc, char **argv)
     ros::Subscriber sub_agent1_pose, sub_agent2_pose, sub_agent3_pose;
     ros::Subscriber sub_agent0_imu;
 
-    sigma_bet_6dof_loose(0) = sigma_bet_6dof_loose(1) = sigma_bet_6dof_loose(2) = 0.01;
-    sigma_bet_6dof_loose(3) = 0.08;
+    sigma_bet_6dof_loose(0) = sigma_bet_6dof_loose(1) = sigma_bet_6dof_loose(2) = 0.0025;
+    sigma_bet_6dof_loose(3) = 0.1;
     sigma_vins_6dof_loose(0) = sigma_vins_6dof_loose(1) = sigma_vins_6dof_loose(2) = 0.1;
-    sigma_vins_6dof_loose(3) = 0.8;
+    sigma_vins_6dof_loose(3) = 1;
     if (USE_SIM == 0)
         sub_agent0_imu = n.subscribe("/mavros/imu/data", 2000, center_pose_callback);
     else
