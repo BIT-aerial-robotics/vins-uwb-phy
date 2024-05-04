@@ -1487,17 +1487,36 @@ void Estimator::optimization()
                                 Eigen::Vector3d sp1=mat_2_world.Ps, sp2;
                                 Eigen::Quaterniond sr1=mat_2_world.Rs, sr2;
                                 arrayTeigenYaw(para_uwb_local_world_Rt[nxt], sp1, sr1);
-                                //sqrt(uwb_mea_sta[uwbIdx].variance())*1.5+(uwb_mea[uwbIdx][nxt]-uwb_mea_sta[uwbIdx].mean())*0.5
-                                UwbFactor *conxt = new UwbFactor(sp1, sr1.toRotationMatrix(), uwb_mea[uwbIdx][nxt],0.16);
-                                //printf("info from uwb %lf\n",sqrt(uwb_mea_sta[uwbIdx].variance())*2.5+(uwb_mea[uwbIdx][nxt]-uwb_mea_sta[uwbIdx].mean())*0.5);
-                                double res[2];
-                                (*conxt)(para_Pose[i], para_UWB_anchor[uwbIdx], para_UWB_bias[uwbIdx],para_tag,res);
-                                if(res[0]>=0.1/0.16)continue;
+
+                                UwbFactor_hand* factor = new UwbFactor_hand(uwb_mea[uwbIdx][nxt],0.16);
+                                double *a1=new double[7];
+                                for(int idx=0;idx<=6;idx++)*(a1+idx)=para_Pose[i][idx];
+                                double *a2=new double[3];
+                                for(int idx=0;idx<=2;idx++)*(a2+idx)=para_UWB_anchor[uwbIdx][idx];
+
+                                double *a3=new double[2];
+                                for(int idx=0;idx<=1;idx++)*(a3+idx)=para_UWB_bias[uwbIdx][idx];
+                                double *a4=new double[3];
+                                for(int idx=0;idx<=2;idx++)*(a3+idx)=para_tag[idx];
+                                double *a[]={a1,a2,a3,a4};
+                                double res[2]={0,0};
+                                double **jact=nullptr;
+                                factor->Evaluate(a,res,jact);
+                                if(res[0]>=0.12/0.16)continue;
+                                problem.AddResidualBlock(factor, NULL, para_Pose[i],para_UWB_anchor[uwbIdx],
+                                para_UWB_bias[uwbIdx],para_tag);
                                 
-                                problem.AddResidualBlock(
-                                    new ceres::AutoDiffCostFunction<UwbFactor, 1, 7, 3, 1,3>(conxt),
-                                    NULL,
-                                    para_Pose[i], para_UWB_anchor[uwbIdx], para_UWB_bias[uwbIdx],para_tag);
+                                //sqrt(uwb_mea_sta[uwbIdx].variance())*1.5+(uwb_mea[uwbIdx][nxt]-uwb_mea_sta[uwbIdx].mean())*0.5
+                                // UwbFactor *conxt = new UwbFactor(sp1, sr1.toRotationMatrix(), uwb_mea[uwbIdx][nxt],0.16);
+                                // //printf("info from uwb %lf\n",sqrt(uwb_mea_sta[uwbIdx].variance())*2.5+(uwb_mea[uwbIdx][nxt]-uwb_mea_sta[uwbIdx].mean())*0.5);
+                                // double res[2];
+                                // (*conxt)(para_Pose[i], para_UWB_anchor[uwbIdx], para_UWB_bias[uwbIdx],para_tag,res);
+                                // if(res[0]>=0.1/0.16)continue;
+                                
+                                // problem.AddResidualBlock(
+                                //     new ceres::AutoDiffCostFunction<UwbFactor, 1, 7, 3, 1,3>(conxt),
+                                //     NULL,
+                                //     para_Pose[i], para_UWB_anchor[uwbIdx], para_UWB_bias[uwbIdx],para_tag);
 
                                 //Eigen::Vector3d x(para_Pose[i]);
                                 //x=sr1.toRotationMatrix()*x+sp1;
@@ -1540,17 +1559,17 @@ void Estimator::optimization()
                             if (uwb_can[uwbIdx][nxt])
                             {
                                 //sqrt(uwb_mea_sta[uwbIdx].variance())*1.5+(uwb_mea[uwbIdx][nxt]-uwb_mea_sta[uwbIdx].mean())*0.5
-                                UWBFactor_delta *conxt = new UWBFactor_delta(eworldP, eworldR.toRotationMatrix(),
-                                                                             delta_p, delta_q, uwb_fre_time[nxt] - Headers[i - 1], uwb_mea[uwbIdx][nxt],0.16);
+                                // UWBFactor_delta *conxt = new UWBFactor_delta(eworldP, eworldR.toRotationMatrix(),
+                                //                                              delta_p, delta_q, uwb_fre_time[nxt] - Headers[i - 1], uwb_mea[uwbIdx][nxt],0.16);
                                 
-                                double res[2];
-                                (*conxt)(para_Pose[i - 1], para_SpeedBias[i - 1], para_UWB_anchor[uwbIdx], para_UWB_bias[uwbIdx],para_tag,res);
-                                if(res[0]>=0.1/0.16)continue;
-                                problem.AddResidualBlock(
-                                    new ceres::AutoDiffCostFunction<UWBFactor_delta, 1, 7, 9, 3, 1,3>(conxt),
-                                    NULL,
-                                    para_Pose[i - 1], para_SpeedBias[i - 1], para_UWB_anchor[uwbIdx], para_UWB_bias[uwbIdx],para_tag);
-                                resNum += 1;
+                                // double res[2];
+                                // (*conxt)(para_Pose[i - 1], para_SpeedBias[i - 1], para_UWB_anchor[uwbIdx], para_UWB_bias[uwbIdx],para_tag,res);
+                                // if(res[0]>=0.1/0.16)continue;
+                                // problem.AddResidualBlock(
+                                //     new ceres::AutoDiffCostFunction<UWBFactor_delta, 1, 7, 9, 3, 1,3>(conxt),
+                                //     NULL,
+                                //     para_Pose[i - 1], para_SpeedBias[i - 1], para_UWB_anchor[uwbIdx], para_UWB_bias[uwbIdx],para_tag);
+                                // resNum += 1;
                             }
                         }
                     }

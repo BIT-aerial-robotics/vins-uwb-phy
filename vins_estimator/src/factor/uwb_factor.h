@@ -9,6 +9,160 @@
 
 #include <ceres/ceres.h>
 
+
+
+class UwbFactor_hand : public ceres::SizedCostFunction<1, 7,3,2,3>
+{
+  public:
+    UwbFactor_hand(const double _dis,const double _cov)
+    {
+    	info=1/_cov;
+      dis=_dis;
+    }
+    virtual bool Evaluate(double const *const *parameters, double *residuals, double **jacobians) const
+    {
+    	Eigen::Vector3d tic(parameters[0][0], parameters[0][1], parameters[0][2]);
+      Eigen::Quaterniond qic(parameters[0][6], parameters[0][3], parameters[0][4], parameters[0][5]);
+
+      Eigen::Vector3d anchor(parameters[1][0], parameters[1][1], parameters[1][2]);
+      double beta=parameters[2][1];
+      double gamma=parameters[2][0];
+      Eigen::Vector3d tag(parameters[3][0], parameters[3][1], parameters[3][2]);
+
+      Eigen::Vector3d tag_w=qic*tag+tic;
+      Eigen::Vector3d diff=tag_w-anchor;
+      double len=diff.norm()*beta+gamma;
+    	residuals[0]=len-dis;
+    	residuals[0]*=info;
+
+    	if (jacobians)
+    	{
+        Eigen::Vector3d n_divide_norm = (tag_w - anchor)/diff.norm();
+    		if (jacobians[0])
+    		{
+    		    Eigen::Map<Eigen::Matrix<double, 1, 7, Eigen::RowMajor>> jacobian_pose_i(jacobians[0]);
+    		    jacobian_pose_i.setZero();
+    		    jacobian_pose_i.block<1, 3>(0, 0) = n_divide_norm.transpose();
+            jacobian_pose_i.block<1, 3>(0, 3) = -n_divide_norm.transpose()*qic.toRotationMatrix()*Utility::skewSymmetric(tag);
+            jacobian_pose_i = jacobian_pose_i*info*beta;
+    		}
+        if(jacobians[1])
+        {
+          Eigen::Map<Eigen::Matrix<double, 1, 3, Eigen::RowMajor>> jacobian_pose_i(jacobians[1]);
+    		    jacobian_pose_i.setZero();
+        }
+        if(jacobians[2])
+        {
+          Eigen::Map<Eigen::Matrix<double, 1, 2, Eigen::RowMajor>> jacobian_pose_i(jacobians[2]);
+    		    jacobian_pose_i.setZero();
+        }
+        if(jacobians[3])
+        {
+          Eigen::Map<Eigen::Matrix<double, 1, 3, Eigen::RowMajor>> jacobian_pose_i(jacobians[3]);
+    		    jacobian_pose_i.setZero();
+        }
+    	}
+    	return true;
+    }
+    double dis,info;
+};
+
+
+
+class UwbFactor_delta_hand : public ceres::SizedCostFunction<1, 7,9,9,3,2,3>
+{
+  public:
+    UwbFactor_delta_hand(Eigen::Vector3d _dp,Eigen::Quaterniond _dq,const double _dis,
+    const double _dt,const double _sum_dt,const double _cov)
+    {
+    	info=1/_cov;
+      dis=_dis;
+      dp=_dp;
+      dq=_dq;
+      dt=_dt;
+      sum_dt=_sum_dt;
+    }
+    virtual bool Evaluate(double const *const *parameters, double *residuals, double **jacobians) const
+    {
+    	Eigen::Vector3d tic(parameters[0][0], parameters[0][1], parameters[0][2]);
+      Eigen::Quaterniond qic(parameters[0][6], parameters[0][3], parameters[0][4], parameters[0][5]);
+
+      Eigen::Vector3d Vi(parameters[1][0], parameters[1][1], parameters[1][2]);
+      Eigen::Vector3d Vj(parameters[2][0], parameters[2][1], parameters[2][2]);
+
+      Eigen::Vector3d anchor(parameters[3][0], parameters[3][1], parameters[3][2]);
+      double beta=parameters[4][1];
+      double gamma=parameters[4][0];
+      Eigen::Vector3d tag(parameters[5][0], parameters[5][1], parameters[5][2]);
+
+
+      double dt2 = dt*dt;
+      Eigen::Vector3d delta_p = qic*dp + Vi * dt - 0.5 * G * dt2;
+
+      Eigen::Vector3d ave_v = 0.5*(Vi + Vj);
+        
+      double a1 = 0.5;
+      double a2 = 1.0 - a1;
+      
+      double tmp_t = 0.5*dt2/sum_dt;
+      Eigen::Vector3d tag_w = tic + qic*tag + a1*delta_p + a2*((dt - tmp_t)*Vi + tmp_t*Vj);
+
+
+      Eigen::Vector3d diff=tag_w-anchor;
+      
+      double len=diff.norm()*beta+gamma;
+    	
+      residuals[0]=len-dis;
+    	residuals[0]*=info;
+
+    	if (jacobians)
+    	{
+        Eigen::Vector3d n_divide_norm = (tag_w - anchor)/diff.norm();
+    		if (jacobians[0])
+    		{
+    		    Eigen::Map<Eigen::Matrix<double, 1, 7, Eigen::RowMajor>> jacobian_pose_i(jacobians[0]);
+    		    jacobian_pose_i.setZero();
+    		    jacobian_pose_i.block<1, 3>(0, 0) = n_divide_norm.transpose();
+            jacobian_pose_i.block<1, 3>(0, 3) = -n_divide_norm.transpose()*qic.toRotationMatrix()*Utility::skewSymmetric(a1*dp + tag);
+            jacobian_pose_i = jacobian_pose_i*info*beta;
+    		}
+        if(jacobians[1])
+        {
+          Eigen::Map<Eigen::Matrix<double, 1, 3, Eigen::RowMajor>> jacobian_pose_i(jacobians[1]);
+    		    jacobian_pose_i.setZero();
+        }
+        if(jacobians[3])
+        {
+          Eigen::Map<Eigen::Matrix<double, 1, 3, Eigen::RowMajor>> jacobian_pose_i(jacobians[3]);
+    		    jacobian_pose_i.setZero();
+        }
+        if(jacobians[4])
+        {
+          Eigen::Map<Eigen::Matrix<double, 1, 2, Eigen::RowMajor>> jacobian_pose_i(jacobians[4]);
+    		    jacobian_pose_i.setZero();
+        }
+        if(jacobians[5])
+        {
+          Eigen::Map<Eigen::Matrix<double, 1, 3, Eigen::RowMajor>> jacobian_pose_i(jacobians[5]);
+    		    jacobian_pose_i.setZero();
+        }
+    	}
+    	return true;
+    }
+    Eigen::Vector3d dp;
+    Eigen::Quaterniond dq;
+    double dt,sum_dt;
+    double dis,info;
+};
+
+
+
+
+
+
+
+
+
 struct UWBBiasFactor
 {
     UWBBiasFactor(double _bias[],double _info)

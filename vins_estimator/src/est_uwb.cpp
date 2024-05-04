@@ -93,7 +93,7 @@ Eigen::Vector3d anchor_create_pos[5] = {
 //     Eigen::Vector3d(38.76,46.12,1.59),
 //     Eigen::Vector3d(-34.48,31.17,1.14)};
 std::default_random_engine generator;
-std::normal_distribution<double> noise_normal_distribution(0.0, 0.04);
+std::normal_distribution<double> noise_normal_distribution(0.08, 0.005);
 
 ceres::Problem problem2;
 double para_bias_est[5][5][2000][1];
@@ -559,7 +559,7 @@ void sync_process()
 
 
 
-        if (opt_frame_len>300)
+        if (opt_frame_len>=200)
         {
             ceres::Problem problem2;
             ceres::LossFunction *loss_function;
@@ -692,8 +692,8 @@ void sync_process()
                 {
                     for (int k = 0; k < opt_frame_len; k++)
                     {
-                        Eigen::Matrix3d rot = Utility::fromYawToMat(para_yaw[j][0][0]);
-                        Eigen::Vector3d tran(para_pos[j][0]);
+                        Eigen::Matrix3d rot = Utility::fromYawToMat(para_yaw[j][k][0]);
+                        Eigen::Vector3d tran(para_pos[j][k]);
                         tran = rot * ps[j][k] + tran;
                         b.coeffRef((j - 1) * (opt_frame_len) + k) = range_mea[j][k][i] * range_mea[j][k][i];
 
@@ -724,19 +724,19 @@ void sync_process()
                     double qx = x.coeffRef((j - 1) * 6 + 0) / beta2;
                     double qy = x.coeffRef((j - 1) * 6 + 1) / beta2;
                     double qz = x.coeffRef((j - 1) * 6 + 2) / beta2;
-                    // para_anchor[i][0]+=qx;
-                    // para_anchor[i][1]+=qy;
-                    // para_anchor[i][2]+=qz;
-                    // para_bias[j][i][0]=gama;
-                    // para_bias[j][i][1]=beta;
+                    para_anchor[i][0]+=qx;
+                    para_anchor[i][1]+=qy;
+                    para_anchor[i][2]+=qz;
+                    para_bias[j][i][0]=gama;
+                    para_bias[j][i][1]=beta;
                 }
-                // para_anchor[i][0]/=3;
-                // para_anchor[i][1]/=3;
-                // para_anchor[i][2]/=3;
-                // printf("init val %lf %lf %lf",para_anchor[i][0],para_anchor[i][1],para_anchor[i][2]);
-                // for(int j=1;j<=use_uav_num;j++)
-                // printf("(bias %lf %lf)",para_bias[j][i][0],para_bias[j][i][1]);
-                // printf("\n");
+                para_anchor[i][0]/=3;
+                para_anchor[i][1]/=3;
+                para_anchor[i][2]/=3;
+                printf("init val %lf %lf %lf",para_anchor[i][0],para_anchor[i][1],para_anchor[i][2]);
+                for(int j=1;j<=use_uav_num;j++)
+                printf("(bias %lf %lf)",para_bias[j][i][0],para_bias[j][i][1]);
+                printf("\n");
             }
         }
         // printf("wdafsufsk  dasflfa");
@@ -857,7 +857,7 @@ void sync_process()
             ROS_INFO("(%lf %lf %lf %lf)", para_pos[j][opt_frame_len - 1][0], para_pos[j][opt_frame_len - 1][1],
                      para_pos[j][opt_frame_len - 1][2], para_yaw[j][opt_frame_len - 1][0]);
         }
-        if (error <= 0.1&&anchor_error<=0.08)
+        if (error <= 0.08&&anchor_error<=0.06)
         {
             ROS_INFO("begin cout matrix and anchor");
             for (int i = 0; i < ANCHORNUMBER; i++)
