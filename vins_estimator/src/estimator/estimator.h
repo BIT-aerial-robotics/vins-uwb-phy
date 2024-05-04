@@ -234,7 +234,7 @@ class Estimator
     Eigen::Vector3d kin_mea_vs[4][(WINDOW_SIZE + 1)*15];
     Eigen::Quaterniond kin_mea_qs[4][(WINDOW_SIZE + 1)*15];
     double para_UWB_anchor[5][3];
-    double para_UWB_bias[5][1];
+    double para_UWB_bias[5][2];
     Eigen::Vector3d UWB_anchor[5];
     double para_uwb_local_world_Rt[(WINDOW_SIZE + 1)*15][SIZE_POSE];
     double para_kin_local_world_Rt[5][(WINDOW_SIZE + 1)*15][SIZE_POSE];

@@ -126,10 +126,10 @@ void Estimator::setParameter()
         processThread = std::thread(&Estimator::processMeasurements, this);
     }
     Eigen::Vector3d anchor_pos[5]={
-    Eigen::Vector3d(-4.17,-4.35,1.38),
-    Eigen::Vector3d(2.93,-3.65,1.3),
-    Eigen::Vector3d(2.76,1.12,1.59),
-    Eigen::Vector3d(-4.48,1.17,1.14)
+        Eigen::Vector3d(-4.17,-4.35,1.38),
+        Eigen::Vector3d(2.93,-3.65,1.3),
+        Eigen::Vector3d(2.76,1.12,1.59),
+        Eigen::Vector3d(-4.48,1.17,1.14)
     };
     for(int i=0;i<ANCHORNUMBER;i++)
     {
@@ -142,21 +142,11 @@ void Estimator::setParameter()
     }
     for (int uwbIdx = 0; uwbIdx <= 4; uwbIdx++)
     {
-        if(SIM_UE)
-        {
-            //para_UWB_anchor[uwbIdx][0]*=2;
-            //para_UWB_anchor[uwbIdx][1]*=2;
-            //para_UWB_anchor[uwbIdx][2]*=2;
-        }
-    }
-    for (int uwbIdx = 0; uwbIdx <= 4; uwbIdx++)
-    {
         para_UWB_bias[uwbIdx][0] = 0.0;
         para_UWB_bias[uwbIdx][1] = 1.0;
         UWB_anchor[uwbIdx] = Eigen::Vector3d(para_UWB_anchor[uwbIdx][0], para_UWB_anchor[uwbIdx][1], para_UWB_anchor[uwbIdx][2]);
     }
     
-
     if(SIM_UE==1){
         para_tag[0]=para_tag[1]=para_tag[2]=0;
         para_length[0]=0.957;
@@ -1444,7 +1434,7 @@ void Estimator::optimization()
         for (int uwbIdx = 0; uwbIdx <= 3; uwbIdx++)
         {
             problem.AddParameterBlock(para_UWB_anchor[uwbIdx], 3);
-            problem.AddParameterBlock(para_UWB_bias[uwbIdx], 1);
+            problem.AddParameterBlock(para_UWB_bias[uwbIdx], 2);
             // UwbFactor_old *conxt =new UwbFactor_old(para_UWB_Anchor[uwbIdx], 0.001);
 
             // problem.AddResidualBlock(
@@ -1488,17 +1478,16 @@ void Estimator::optimization()
                                 Eigen::Quaterniond sr1=mat_2_world.Rs, sr2;
                                 arrayTeigenYaw(para_uwb_local_world_Rt[nxt], sp1, sr1);
 
-                                UwbFactor_hand* factor = new UwbFactor_hand(uwb_mea[uwbIdx][nxt],0.16);
+                                UwbFactor_hand* factor = new UwbFactor_hand(sp1, sr1.toRotationMatrix(),uwb_mea[uwbIdx][nxt],0.16);
                                 double *a1=new double[7];
                                 for(int idx=0;idx<=6;idx++)*(a1+idx)=para_Pose[i][idx];
                                 double *a2=new double[3];
                                 for(int idx=0;idx<=2;idx++)*(a2+idx)=para_UWB_anchor[uwbIdx][idx];
-
                                 double *a3=new double[2];
                                 for(int idx=0;idx<=1;idx++)*(a3+idx)=para_UWB_bias[uwbIdx][idx];
                                 double *a4=new double[3];
                                 for(int idx=0;idx<=2;idx++)*(a3+idx)=para_tag[idx];
-                                double *a[]={a1,a2,a3,a4};
+                                double* a[]={a1,a2,a3,a4};
                                 double res[2]={0,0};
                                 double **jact=nullptr;
                                 factor->Evaluate(a,res,jact);
@@ -1558,6 +1547,27 @@ void Estimator::optimization()
                             if(use_est_uwb_anchor[uwbIdx]==0&&USE_EST_UWB==1)continue;
                             if (uwb_can[uwbIdx][nxt])
                             {
+
+
+                                UwbFactor_delta_hand_2* factor = new UwbFactor_delta_hand_2(eworldP, eworldR.toRotationMatrix(),
+                                delta_p,delta_q,uwb_mea[uwbIdx][nxt],uwb_fre_time[nxt] - Headers[i - 1],0.16);
+                                double *a1=new double[7];
+                                for(int idx=0;idx<=6;idx++)*(a1+idx)=para_Pose[i-1][idx];
+                                double *a2=new double[3];
+                                for(int idx=0;idx<=2;idx++)*(a2+idx)=para_UWB_anchor[uwbIdx][idx];
+                                double *a3=new double[2];
+                                for(int idx=0;idx<=1;idx++)*(a3+idx)=para_UWB_bias[uwbIdx][idx];
+                                double *a4=new double[3];
+                                for(int idx=0;idx<=2;idx++)*(a3+idx)=para_tag[idx];
+                                double *a5=new double[7];
+                                for(int idx=0;idx<=8;idx++)*(a5+idx)=para_SpeedBias[i-1][idx];
+                                double* a[]={a1,a5,a2,a3,a4};
+                                double res[2]={0,0};
+                                double **jact=nullptr;
+                                factor->Evaluate(a,res,jact);
+                                if(res[0]>=0.12/0.16)continue;
+                                problem.AddResidualBlock(factor, NULL, para_Pose[i - 1], para_SpeedBias[i - 1], para_UWB_anchor[uwbIdx], para_UWB_bias[uwbIdx],para_tag);
+
                                 //sqrt(uwb_mea_sta[uwbIdx].variance())*1.5+(uwb_mea[uwbIdx][nxt]-uwb_mea_sta[uwbIdx].mean())*0.5
                                 // UWBFactor_delta *conxt = new UWBFactor_delta(eworldP, eworldR.toRotationMatrix(),
                                 //                                              delta_p, delta_q, uwb_fre_time[nxt] - Headers[i - 1], uwb_mea[uwbIdx][nxt],0.16);
@@ -1569,7 +1579,7 @@ void Estimator::optimization()
                                 //     new ceres::AutoDiffCostFunction<UWBFactor_delta, 1, 7, 9, 3, 1,3>(conxt),
                                 //     NULL,
                                 //     para_Pose[i - 1], para_SpeedBias[i - 1], para_UWB_anchor[uwbIdx], para_UWB_bias[uwbIdx],para_tag);
-                                // resNum += 1;
+                                resNum += 1;
                             }
                         }
                     }
