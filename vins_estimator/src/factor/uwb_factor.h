@@ -10,6 +10,43 @@
 #include <ceres/ceres.h>
 
 
+class PoseAnchorFactor : public ceres::SizedCostFunction<6, 7>
+{
+    public: 
+        PoseAnchorFactor() = delete;
+        PoseAnchorFactor(const std::vector<double> anchor_value)
+        {
+            for (int i = 0; i < 7; ++i) _anchor_point(i) = anchor_value[i];
+        }
+        virtual bool Evaluate(double const *const *parameters, double *residuals, double **jacobians) const
+        {
+            Eigen::Map<const Eigen::Matrix<double, 7, 1>> pose(parameters[0]);
+            Eigen::Map<Eigen::Matrix<double, 6, 1>> res(residuals);
+            res.head<3>() = pose.head<3>() - _anchor_point.head<3>();
+            const Eigen::Quaterniond curr_q(pose.tail<4>());
+            const Eigen::Quaterniond anchor_q(_anchor_point.tail<4>());
+            res.tail<3>() = 2.0 * (curr_q*anchor_q.inverse()).vec();
+            res *= sqrt_info;
+            if (jacobians && jacobians[0])
+            {
+                Eigen::Map<Eigen::Matrix<double, 6, 7, Eigen::RowMajor>> J(jacobians[0]);
+                J.setZero();
+                J.topLeftCorner<3, 3>().setIdentity();
+
+                Eigen::Quaterniond anchor_q_inv = anchor_q.inverse();
+                Eigen::Matrix3d J_q;
+                J_q << anchor_q_inv.w(),  anchor_q_inv.z(), -anchor_q_inv.y(),
+                    -anchor_q_inv.z(),  anchor_q_inv.w(),  anchor_q_inv.x(),
+                    anchor_q_inv.y(), -anchor_q_inv.x(),  anchor_q_inv.w();
+                J.block<3, 3>(3, 3) = J_q;
+                J *= 2.0*sqrt_info;
+            }
+            return true;
+        }
+    private:
+        Eigen::Matrix<double, 7, 1> _anchor_point;
+        constexpr static double sqrt_info = 120;
+};
 
 class UwbFactor_hand : public ceres::SizedCostFunction<1, 7,3,2,3>
 {
@@ -200,8 +237,10 @@ class UwbFactor_delta_hand_2 : public ceres::SizedCostFunction<1, 7,9,3,2,3>
       Eigen::Vector3d tag_B = tic + dq*qic*tag + a1*delta_p;
 
       Eigen::Vector3d tag_W = wr*tag_B+wp;
+
+      Eigen::Vector3d anchor_B=wr.transpose()*anchor-wr.transpose()*wp;
       Eigen::Vector3d diff=tag_W-anchor;
-      
+      Eigen::Vector3d diff2=tag_W-anchor;
       double len=diff.norm()*beta+gamma;
     	
       residuals[0]=len-dis;
@@ -226,19 +265,112 @@ class UwbFactor_delta_hand_2 : public ceres::SizedCostFunction<1, 7,9,3,2,3>
           jacobian_speed_i.block<1, 3>(0, 0) = n_divide_norm.transpose()*wr*a1*dt;
           jacobian_speed_i=jacobian_speed_i*info*beta;
         }
+        if(jacobians[2])
+        {
+          Eigen::Map<Eigen::Matrix<double, 1, 3, Eigen::RowMajor>> jacobian_pose_i(jacobians[2]);
+    		    jacobian_pose_i.setZero();
+        }
         if(jacobians[3])
         {
-          Eigen::Map<Eigen::Matrix<double, 1, 3, Eigen::RowMajor>> jacobian_pose_i(jacobians[3]);
+          Eigen::Map<Eigen::Matrix<double, 1, 2, Eigen::RowMajor>> jacobian_pose_i(jacobians[3]);
     		    jacobian_pose_i.setZero();
         }
         if(jacobians[4])
         {
-          Eigen::Map<Eigen::Matrix<double, 1, 2, Eigen::RowMajor>> jacobian_pose_i(jacobians[4]);
+          Eigen::Map<Eigen::Matrix<double, 1, 3, Eigen::RowMajor>> jacobian_pose_i(jacobians[4]);
     		    jacobian_pose_i.setZero();
         }
-        if(jacobians[5])
+    	}
+    	return true;
+    }
+    Eigen::Vector3d dp;
+    Eigen::Matrix3d dq;
+    Eigen::Vector3d wp;
+    Eigen::Matrix3d wr;
+    double dt,sum_dt;
+    double dis,info;
+};
+
+class UwbFactor_delta_hand_3 : public ceres::SizedCostFunction<1, 7,9,3,2,3>
+{
+  public:
+    UwbFactor_delta_hand_3(Eigen::Vector3d _wp,Eigen::Matrix3d _wr,Eigen::Vector3d _dp,Eigen::Matrix3d _dq,const double _dis,
+    const double _dt,const double _cov)
+    {
+    	info=1/_cov;
+      dis=_dis;
+      dp=_dp;
+      dq=_dq;
+      dt=_dt;
+      wp=_wp;
+      wr=_wr;
+    }
+    virtual bool Evaluate(double const *const *parameters, double *residuals, double **jacobians) const
+    {
+    	Eigen::Vector3d tic(parameters[0][0], parameters[0][1], parameters[0][2]);
+      Eigen::Quaterniond qic(parameters[0][6], parameters[0][3], parameters[0][4], parameters[0][5]);
+
+      Eigen::Vector3d Vi(parameters[1][0], parameters[1][1], parameters[1][2]);
+
+      Eigen::Vector3d anchor(parameters[2][0], parameters[2][1], parameters[2][2]);
+      double beta=parameters[3][1];
+      double gamma=parameters[3][0];
+      Eigen::Vector3d tag(parameters[4][0], parameters[4][1], parameters[4][2]);
+
+
+      double dt2 = dt*dt;
+      Eigen::Vector3d delta_p = qic*dp + Vi * dt - 0.5 * G * dt2;
+
+      //Eigen::Vector3d ave_v = 0.5*(Vi + Vj);
+        
+      double a1 = 1;
+      double a2 = 1.0 - a1;
+      
+      //double tmp_t = 0.5*dt2/sum_dt;
+      Eigen::Vector3d tag_B = tic + dq*qic*tag + a1*delta_p;
+
+      Eigen::Vector3d tag_W = wr*tag_B+wp;
+
+      Eigen::Vector3d anchor_B=wr.transpose()*anchor-wr.transpose()*wp;
+
+      Eigen::Vector3d diff=tag_B-anchor_B;
+      double len=diff.norm()*beta+gamma;
+    	
+      residuals[0]=len-dis;
+    	residuals[0]*=info;
+
+    	if (jacobians)
+    	{
+        Eigen::Vector3d n_divide_norm = (tag_B - anchor_B)/diff.norm();
+    		if (jacobians[0])
+    		{
+    		    Eigen::Map<Eigen::Matrix<double, 1, 7, Eigen::RowMajor>> jacobian_pose_i(jacobians[0]);
+    		    jacobian_pose_i.setZero();
+    		    jacobian_pose_i.block<1, 3>(0, 0) = n_divide_norm.transpose();
+            jacobian_pose_i.block<1, 3>(0, 3) = -n_divide_norm.transpose()*(dq*Utility::skewSymmetric(qic.toRotationMatrix()*(tag))
+            +Utility::skewSymmetric(qic.toRotationMatrix()*(a1*dp)));
+            jacobian_pose_i = jacobian_pose_i*info*beta;
+    		}
+        if(jacobians[1])
         {
-          Eigen::Map<Eigen::Matrix<double, 1, 3, Eigen::RowMajor>> jacobian_pose_i(jacobians[5]);
+          Eigen::Map<Eigen::Matrix<double, 1, 9, Eigen::RowMajor>> jacobian_speed_i(jacobians[1]);
+    		  jacobian_speed_i.setZero();
+          jacobian_speed_i.block<1, 3>(0, 0) = n_divide_norm.transpose()*a1*dt;
+          jacobian_speed_i=jacobian_speed_i*info*beta;
+        }
+        if(jacobians[2])
+        {
+          Eigen::Map<Eigen::Matrix<double, 1, 3, Eigen::RowMajor>> jacobian_pose_i(jacobians[2]);
+    		    jacobian_pose_i.setZero();
+        }
+        if(jacobians[3])
+        {
+          Eigen::Map<Eigen::Matrix<double, 1, 2, Eigen::RowMajor>> jacobian_pose_i(jacobians[3]);
+    		    jacobian_pose_i.setZero();
+        }
+        if(jacobians[4])
+        {
+          Eigen::Map<Eigen::Matrix<double, 1, 3, Eigen::RowMajor>> jacobian_pose_i(jacobians[4]);
     		    jacobian_pose_i.setZero();
         }
     	}

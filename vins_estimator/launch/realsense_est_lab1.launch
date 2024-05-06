@@ -14,10 +14,10 @@
     </group>
 
     <node pkg="rosbag" type="play" name="player" output="log" 
-    args="$(arg sequence_1) -s 5 -r 0.5
+    args="$(arg sequence_1) -s 5 -r 0.25
     " />
     <node pkg="rosbag" type="play" name="player2" output="log" 
-    args="$(arg sequence_uwb) -s 6 -r 0.5
+    args="$(arg sequence_uwb) -s 6 -r 0.25
     " />
     <!-- <node pkg="rosbag" type="play" name="player3" output="log" 
     args="$(arg sequence_est) delay 15

@@ -564,13 +564,14 @@ int main(int argc, char **argv)
         }
     }
     sub_self_odometry[0]=n.subscribe<sensor_msgs::Imu>("/mavros/imu/data",200,center_imu_callback);
-
     ros::Subscriber sub_uwb_anchor_pose[5],self_rt_world;
-    for(int i=0;i<ANCHORNUMBER;i++){
-        sub_uwb_anchor_pose[i]=n.subscribe<nav_msgs::Odometry>("/anchor_pos"+std::to_string(i),500,boost::bind(anchor_call_back,_1,i));
-    }
-    ///ag2/rt_world
-    self_rt_world=n.subscribe<geometry_msgs::PoseStamped>("/ag"+std::to_string(AGENT_NUMBER)+"/rt_world",500,rt_call_back);
+    if(USE_EST_UWB)
+    {
+        for(int i=0;i<ANCHORNUMBER;i++){
+            sub_uwb_anchor_pose[i]=n.subscribe<nav_msgs::Odometry>("/anchor_pos"+std::to_string(i),500,boost::bind(anchor_call_back,_1,i));
+        }
+        self_rt_world=n.subscribe<geometry_msgs::PoseStamped>("/ag"+std::to_string(AGENT_NUMBER)+"/rt_world",500,rt_call_back);
+    }  
     std::thread sync_thread{sync_process};
     ros::spin();
 
