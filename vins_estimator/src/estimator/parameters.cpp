@@ -59,7 +59,7 @@ int uwbNum=0,lowNum=0;
 int FLIGHT_MODE;
 int USE_EXR;
 int ANCHORNUMBER=4;
-int USE_EST_UWB=1;
+int USE_EST_UWB=0;
 int USE_TRUE_NOISE=0;
 Eigen::Vector3d HINGE;
 double KIN_LENGTH;

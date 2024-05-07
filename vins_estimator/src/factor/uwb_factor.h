@@ -83,7 +83,7 @@ class UwbFactor_hand : public ceres::SizedCostFunction<1, 7,3,2,3>
     		    Eigen::Map<Eigen::Matrix<double, 1, 7, Eigen::RowMajor>> jacobian_pose_i(jacobians[0]);
     		    jacobian_pose_i.setZero();
     		    jacobian_pose_i.block<1, 3>(0, 0) = n_divide_norm.transpose()*wr;
-            jacobian_pose_i.block<1, 3>(0, 3) = -n_divide_norm.transpose()*wr*Utility::skewSymmetric(qic.toRotationMatrix()*tag);
+            jacobian_pose_i.block<1, 3>(0, 3) = -n_divide_norm.transpose()*wr*qic.toRotationMatrix()*Utility::skewSymmetric(tag);
             jacobian_pose_i = jacobian_pose_i*info*beta;
     		}
         if(jacobians[1])
@@ -254,8 +254,8 @@ class UwbFactor_delta_hand_2 : public ceres::SizedCostFunction<1, 7,9,3,2,3>
     		    Eigen::Map<Eigen::Matrix<double, 1, 7, Eigen::RowMajor>> jacobian_pose_i(jacobians[0]);
     		    jacobian_pose_i.setZero();
     		    jacobian_pose_i.block<1, 3>(0, 0) = n_divide_norm.transpose()*wr;
-            jacobian_pose_i.block<1, 3>(0, 3) = -n_divide_norm.transpose()*wr*(dq*Utility::skewSymmetric(qic.toRotationMatrix()*(tag))
-            +Utility::skewSymmetric(qic.toRotationMatrix()*(a1*dp)));
+            jacobian_pose_i.block<1, 3>(0, 3) = -n_divide_norm.transpose()*wr*(dq*qic.toRotationMatrix()*Utility::skewSymmetric((tag))
+            +qic.toRotationMatrix()*Utility::skewSymmetric((a1*dp)));
             jacobian_pose_i = jacobian_pose_i*info*beta;
     		}
         if(jacobians[1])

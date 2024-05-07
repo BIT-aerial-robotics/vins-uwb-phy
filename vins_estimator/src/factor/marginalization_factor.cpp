@@ -124,7 +124,9 @@ void MarginalizationInfo::preMarginalize()
     int opt=0;
     for (auto it : factors)
     {
+        
         opt++;
+        //std::cout<<opt<<" "<<it<<std::endl;
         //ROS_INFO("%d opt begin Evaluate ",opt);
         it->Evaluate();
         //ROS_INFO("%d opt end Evaluate ",opt);
@@ -139,7 +141,7 @@ void MarginalizationInfo::preMarginalize()
                 memcpy(data, it->parameter_blocks[i], sizeof(double) * size);
                 parameter_block_data[addr] = data;
             }
-        }
+        }//ROS_INFO("%d opt data memcpy ",opt);
     }
 }
 
