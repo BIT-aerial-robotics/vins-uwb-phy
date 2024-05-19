@@ -217,13 +217,21 @@ void readParameters(std::string config_file)
         ESTIMATE_TD = 0;
         printf("no imu, fix extrinsic param; no time offset calibration\n");
     }
+
+
     USE_LOOSE=0;
     USE_KIN=0;
+    USE_KIN=fsSettings["use_kin"];
     USELINE=0;
-    USE_UWB=1;
+    USE_UWB=0;
+    USE_UWB=fsSettings["use_uwb"];
     SIM_UWB=0;
-    imu_delta_fre=3;
+    
     IMU_SAEM_FRE=1;
+    imu_delta_fre=3;
+    IMU_SAEM_FRE=fsSettings["imu_fre"];
+    imu_delta_fre=3;
+    imu_delta_fre=fsSettings["imu_delta"];
     MULAGENT=0;
     DEPEND=1;
     AGENT_NUMBER=fsSettings["agent_number"];

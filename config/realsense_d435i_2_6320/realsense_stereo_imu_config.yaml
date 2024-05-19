@@ -15,7 +15,10 @@ cam1_calib: "right.yaml"
 image_width: 640
 image_height: 480
 agent_number: 2
-
+use_kin: 0
+use_uwb: 0
+imu_fre: 1
+imu_delta: 3
 # Extrinsic parameter between IMU and Camera.
 estimate_extrinsic: 1   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
                         # 1  Have an initial guess about extrinsic parameters. We will optimize around your initial guess.

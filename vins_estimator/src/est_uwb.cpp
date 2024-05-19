@@ -93,7 +93,7 @@ Eigen::Vector3d anchor_create_pos[5] = {
 //     Eigen::Vector3d(38.76,46.12,1.59),
 //     Eigen::Vector3d(-34.48,31.17,1.14)};
 std::default_random_engine generator;
-std::normal_distribution<double> noise_normal_distribution(0.15, 0.001);
+std::normal_distribution<double> noise_normal_distribution(0.05, 0.001);
 
 ceres::Problem problem2;
 double para_bias_est[5][5][2000][1];
@@ -857,7 +857,7 @@ void sync_process()
             ROS_INFO("(%lf %lf %lf %lf)", para_pos[j][opt_frame_len - 1][0], para_pos[j][opt_frame_len - 1][1],
                      para_pos[j][opt_frame_len - 1][2], para_yaw[j][opt_frame_len - 1][0]);
         }
-        if (error <= 0.1&&anchor_error<=0.25)
+        if (error <= 0.1&&anchor_error<=0.15)
         {
             ROS_INFO("begin cout matrix and anchor");
             for (int i = 0; i < ANCHORNUMBER; i++)
@@ -871,6 +871,7 @@ void sync_process()
                 {
                     dat.twist.covariance[(j - 1) * 2 + 0] = para_bias[j][i][0],
                                                        dat.twist.covariance[(j - 1) * 2 + 1] = para_bias[j][i][1];
+                    cout<<i<<" "<<j<<" "<<para_bias[j][i][0]<<"  "<<para_bias[j][i][1]<<endl;
                 }
                 pub_anchor_pos[i].publish(dat);
             }

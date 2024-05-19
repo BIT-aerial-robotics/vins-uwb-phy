@@ -1492,62 +1492,62 @@ void Estimator::optimization()
             cout << "uwb_length:" << uwb_length << "  " << uwbNum << "  " << resNum << endl;
         }
 
-        double time = Headers[WINDOW_SIZE];
-        auto iter = uwb_2_index.lower_bound(time);
-        int flag_fir = 0;
-        if (iter != uwb_2_index.end() && abs(time - iter->first) <= 0.02)
-        {
-            int nxt = iter->second;
-            int num = 0;
-            double alldis = 0;
-            double base = 0;
-            for (int uwbIdx = lowNum; uwbIdx <= uwbNum; uwbIdx++)
-            {
+        // double time = Headers[WINDOW_SIZE];
+        // auto iter = uwb_2_index.lower_bound(time);
+        // int flag_fir = 0;
+        // if (iter != uwb_2_index.end() && abs(time - iter->first) <= 0.02)
+        // {
+        //     int nxt = iter->second;
+        //     int num = 0;
+        //     double alldis = 0;
+        //     double base = 0;
+        //     for (int uwbIdx = lowNum; uwbIdx <= uwbNum; uwbIdx++)
+        //     {
 
-                if (uwb_can[uwbIdx][nxt])
-                {
-                    Eigen::Vector3d sp1 = mat_2_world.Ps, sp2(para_UWB_anchor[uwbIdx]), sp3 = Ps[0], dis_vec;
-                    Eigen::Quaterniond sr1 = mat_2_world.Rs, sr3{Rs[0]};
-                    sp3 += sr3 * Eigen::Vector3d(para_tag);
-                    sp3 = sr1 * sp3 + sp1;
-                    dis_vec = sp3 - sp2;
-                    double dis = dis_vec.norm() - (uwb_mea[uwbIdx][nxt] - para_UWB_bias[uwbIdx][0]);
-                    alldis += abs(dis);
-                    num += 1;
-                    base += sqrt(uwb_mea_sta[uwbIdx].variance());
-                }
-            }
+        //         if (uwb_can[uwbIdx][nxt])
+        //         {
+        //             Eigen::Vector3d sp1 = mat_2_world.Ps, sp2(para_UWB_anchor[uwbIdx]), sp3 = Ps[0], dis_vec;
+        //             Eigen::Quaterniond sr1 = mat_2_world.Rs, sr3{Rs[0]};
+        //             sp3 += sr3 * Eigen::Vector3d(para_tag);
+        //             sp3 = sr1 * sp3 + sp1;
+        //             dis_vec = sp3 - sp2;
+        //             double dis = dis_vec.norm() - (uwb_mea[uwbIdx][nxt] - para_UWB_bias[uwbIdx][0]);
+        //             alldis += abs(dis);
+        //             num += 1;
+        //             base += sqrt(uwb_mea_sta[uwbIdx].variance());
+        //         }
+        //     }
 
-            if (num > 0)
-            {
-                // if(frame_sol_cnt%40==0&&frame_sol_cnt>40){
-                //     sta.clear();
-                // }
-                // alldis/=num;
-                // sta.update(alldis);
-                // alldis=sta.mean();
-                // base/=num;
-                // double expbase=exp(1+base);
-                // printf("base ==  %lf expbase %lf alldis == %lf",base,expbase,alldis);
-                // kinFactor_old *old_fir = new kinFactor_old(para_Pose[0], 0.0005+(alldis/(40*expbase)),0.0001+(alldis/(40*expbase)));
-                // problem.AddResidualBlock(
-                //         new ceres::AutoDiffCostFunction<kinFactor_old, 7, 7>(old_fir),
-                //         NULL,
-                //         para_Pose[0]);
-                // flag_fir=1;
-            }
-        }
-        if (flag_fir == 0 && uwbNum >= 2)
-        {
-            double base = 0.0001;
-            if (AGENT_NUMBER != 2)
-                base /= 16;
-            kinFactor_old *old_fir = new kinFactor_old(para_Pose[0], base * (USE_UWB + USE_KIN * 2), base * 0.5 * (USE_UWB + USE_KIN * 2));
-            problem.AddResidualBlock(
-                new ceres::AutoDiffCostFunction<kinFactor_old, 7, 7>(old_fir),
-                NULL,
-                para_Pose[0]);
-        }
+        //     if (num > 0)
+        //     {
+        //         // if(frame_sol_cnt%40==0&&frame_sol_cnt>40){
+        //         //     sta.clear();
+        //         // }
+        //         // alldis/=num;
+        //         // sta.update(alldis);
+        //         // alldis=sta.mean();
+        //         // base/=num;
+        //         // double expbase=exp(1+base);
+        //         // printf("base ==  %lf expbase %lf alldis == %lf",base,expbase,alldis);
+        //         // kinFactor_old *old_fir = new kinFactor_old(para_Pose[0], 0.0005+(alldis/(40*expbase)),0.0001+(alldis/(40*expbase)));
+        //         // problem.AddResidualBlock(
+        //         //         new ceres::AutoDiffCostFunction<kinFactor_old, 7, 7>(old_fir),
+        //         //         NULL,
+        //         //         para_Pose[0]);
+        //         // flag_fir=1;
+        //     }
+        // }
+        // if (flag_fir == 0 && uwbNum >= 2)
+        // {
+        //     double base = 0.0001;
+        //     if (AGENT_NUMBER != 2)
+        //         base /= 16;
+        //     kinFactor_old *old_fir = new kinFactor_old(para_Pose[0], base * (USE_UWB + USE_KIN * 2), base * 0.5 * (USE_UWB + USE_KIN * 2));
+        //     problem.AddResidualBlock(
+        //         new ceres::AutoDiffCostFunction<kinFactor_old, 7, 7>(old_fir),
+        //         NULL,
+        //         para_Pose[0]);
+        // }
     }
     if (USE_KIN)
     {
@@ -1867,7 +1867,7 @@ void Estimator::optimization()
                     }
                 }
             }
-            if (0)
+            if (1)
             {
                 int cnt = pre_integrations[1]->last_t_buf.size();
                 int imu_frame_num; // min(cnt, imu_delta_fre);
@@ -1937,7 +1937,7 @@ void Estimator::optimization()
 
         addr_shift[reinterpret_cast<long>(para_Td[0])] = para_Td[0];
 
-        if(USE_UWB){
+        if(USE_UWB&&uwb_length > 0 && to_world_rt_flag){
             addr_shift[reinterpret_cast<long>(para_tag)] = para_tag;
             for(int uwbIdx=lowNum;uwbIdx<=uwbNum;uwbIdx++){
                 addr_shift[reinterpret_cast<long>(para_UWB_anchor[uwbIdx])] = para_UWB_anchor[uwbIdx];
@@ -2011,7 +2011,7 @@ void Estimator::optimization()
                 addr_shift[reinterpret_cast<long>(para_Ex_Pose[i])] = para_Ex_Pose[i];
 
             addr_shift[reinterpret_cast<long>(para_Td[0])] = para_Td[0];
-            if(USE_UWB){
+            if(USE_UWB&&uwb_length > 0 && to_world_rt_flag){
                 addr_shift[reinterpret_cast<long>(para_tag)] = para_tag;
                 for(int uwbIdx=lowNum;uwbIdx<=uwbNum;uwbIdx++){
                     addr_shift[reinterpret_cast<long>(para_UWB_anchor[uwbIdx])] = para_UWB_anchor[uwbIdx];
