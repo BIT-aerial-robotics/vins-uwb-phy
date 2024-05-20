@@ -29,6 +29,17 @@ double pre_calc_hinge[3] = {para_HINGE[0], para_HINGE[1], para_HINGE[2]};
 double pre_calc_length[1] = {para_LENGTH[0]};
 double sigma_hyp_loose = 0.01;
 double sigma_length_loose = 0.05;
+
+double opt_eps=0.08;
+double opt_des=0.02;
+double opt_time_upper=60;
+double opt_time_lower=3;
+double uwb_bias_beta_low=0.95;
+double uwb_bias_beta_upp=1.0;
+double uwb_bias_gama_low=0.35;
+double uwb_bias_gama_upp=0.44;
+double uwb_frame_delta=0.25;
+double uwb_outlier=0.2;
 Eigen::Matrix<double, 4, 1> sigma_vins_6dof_loose;
 Eigen::Matrix<double, 4, 1> sigma_bet_6dof_loose;
 MarginalizationInfo *last_marginalization_info;
@@ -104,6 +115,53 @@ int long_window_len;
 ros::Publisher pub_anchor_pos[5];
 ros::Publisher pub_ag_rt[4];
 ros::Publisher pub_ag_pose[4];
+
+
+void readParametersEstUwb(std::string config_file)
+{
+    FILE *fh = fopen(config_file.c_str(),"r");
+    if(fh == NULL){
+        ROS_WARN("config_file dosen't exist; wrong config_file path");
+        ROS_BREAK();
+        return;          
+    }
+    fclose(fh);
+
+    cv::FileStorage fsSettings(config_file, cv::FileStorage::READ);
+    if(!fsSettings.isOpened())
+    {
+        std::cerr << "ERROR: Wrong path to settings" << std::endl;
+    }
+
+    if(fsSettings["body_T_hinge"].type()!=cv::FileNode::NONE)
+    {
+        cv::Mat cv_T;
+        fsSettings["body_T_hinge"] >> cv_T;
+        Eigen::Matrix4d T;
+        cv::cv2eigen(cv_T, T);
+        pre_calc_hinge[0]=T(0,3);
+        pre_calc_hinge[1]=T(1,3);
+        pre_calc_hinge[2]=T(2,3);
+    }
+    if(fsSettings["opt_eps"].type()!=cv::FileNode::NONE)
+        opt_eps=fsSettings["opt_eps"];
+    if(fsSettings["opt_des"].type()!=cv::FileNode::NONE)
+        opt_des=fsSettings["opt_des"];
+    if(fsSettings["opt_time_upper"].type()!=cv::FileNode::NONE)
+        opt_time_upper=fsSettings["opt_time_upper"];
+    if(fsSettings["opt_time_lower"].type()!=cv::FileNode::NONE)
+        opt_time_lower=fsSettings["opt_time_lower"];
+    if(fsSettings["uwb_bias_beta_low"].type()!=cv::FileNode::NONE)
+        uwb_bias_beta_low=fsSettings["uwb_bias_beta_low"];
+    if(fsSettings["uwb_bias_beta_low"].type()!=cv::FileNode::NONE)
+        uwb_bias_beta_low=fsSettings["uwb_bias_beta_low"];
+    if(fsSettings["uwb_bias_beta_upp"].type()!=cv::FileNode::NONE)
+        uwb_bias_beta_upp=fsSettings["uwb_bias_beta_upp"];
+    if(fsSettings["uwb_bias_gama_low"].type()!=cv::FileNode::NONE)
+        uwb_bias_gama_low=fsSettings["uwb_bias_gama_low"];
+    if(fsSettings["uwb_bias_gama_upp"].type()!=cv::FileNode::NONE)
+        uwb_bias_gama_upp=fsSettings["uwb_bias_gama_upp"];
+}
 void pub(int tot, int cnt)
 {
 
@@ -307,7 +365,7 @@ void sync_process()
     int opt_frame_len = 0;
     int faile_num = 0;
     string filename = "/home/f404/est.csv";
-
+    double last_error=10000;
     while (1)
     {
         ofstream file(filename, ios::app);
@@ -551,7 +609,7 @@ void sync_process()
             ceres::Solver::Summary summary;
             ceres::Solve(options, &problem, &summary);
             std::cout << summary.BriefReport() << std::endl;
-            std::cout<<len_res_num<<"  "<<att_res_num<<"  "<<para_agent_time[upperIdx-1]-para_agent_time[lowerIdx]<<std::endl;
+            //std::cout<<len_res_num<<"  "<<att_res_num<<"  "<<para_agent_time[upperIdx-1]-para_agent_time[lowerIdx]<<std::endl;
         }
 
         
@@ -577,7 +635,7 @@ void sync_process()
                         use_id=j;
                     }
                     else{
-                        if((ps[i][j]-ps[i][use_id]).norm()<0.25)continue;
+                        if((ps[i][j]-ps[i][use_id]).norm()<uwb_frame_delta)continue;
                         else{
                             use_id=j;
                         }
@@ -596,7 +654,7 @@ void sync_process()
                         
                         double residual[2];
                         (*self_factor)(para_pos[i][j], para_yaw[i][j], para_anchor[k], para_bias[i][k],residual);
-                        if(residual[0]>2.5&&opt_frame_len>350)continue;
+                        if(residual[0]>uwb_outlier/0.04&&opt_frame_len>350)continue;
                         problem2.AddResidualBlock(
                             new ceres::AutoDiffCostFunction<UWBFactor_connect_4dof_plus_mul, 1, 3, 1, 3, 2>(self_factor),
                             loss_function,
@@ -614,12 +672,11 @@ void sync_process()
                                                                                                                  ps[i][d2], qs[i][d2],
                                                                                                                  para_TAG, range_mea[i][d1][k], range_mea[i][d2][k], 0.04);
                             
-                            
                             double residual[2];
                             (*self_factor)(para_pos[i][d1], para_yaw[i][d1], 
                                 para_pos[i][d2], para_yaw[i][d2],
                                 para_anchor[k], para_bias[i][k],residual);
-                            if(residual[0]>5&&opt_frame_len>350)continue;
+                            if(residual[0]>uwb_outlier/0.04&&opt_frame_len>350)continue;
                             problem2.AddResidualBlock(
                                 new ceres::AutoDiffCostFunction<UWBFactor_connect_2time_plus_mul, 1, 3, 1,3,1, 3, 2>(self_factor),
                                 loss_function,
@@ -638,10 +695,10 @@ void sync_process()
                 {
                     problem2.AddParameterBlock(para_bias[i][k], 2);
                     // problem.SetParameterBlockConstant(para_bias[i][k]);
-                    problem2.SetParameterLowerBound(para_bias[i][k], 1, 0.95);
-                    problem2.SetParameterUpperBound(para_bias[i][k], 1, 1.00);
-                    problem2.SetParameterLowerBound(para_bias[i][k], 0, 0.35);
-                    problem2.SetParameterUpperBound(para_bias[i][k], 0, 0.44);
+                    problem2.SetParameterLowerBound(para_bias[i][k], 1, uwb_bias_beta_low);
+                    problem2.SetParameterUpperBound(para_bias[i][k], 1, uwb_bias_beta_upp);
+                    problem2.SetParameterLowerBound(para_bias[i][k], 0, uwb_bias_gama_low);
+                    problem2.SetParameterUpperBound(para_bias[i][k], 0, uwb_bias_gama_upp);
                     // UWBBiasFactor *self_factor = new UWBBiasFactor(para_bias[i][k], 0.01);
                     // problem.AddResidualBlock(
                     //     new ceres::AutoDiffCostFunction<UWBBiasFactor, 2, 2>(self_factor),
@@ -781,15 +838,16 @@ void sync_process()
         vector<Eigen::Vector3d> item_error(4, Eigen::Vector3d::Zero());
         double error = computeError(pointsA, pointsB, rotation, translation, item_error);
         string con = "";
-        con = to_string(para_agent_time[opt_frame_len - 1] - para_agent_time[0]) + ",";
-        for (int i = 0; i < 4; i++)
-        {
-            con = con + to_string(item_error[i].norm()) + ",";
-            for (int j = 0; j <= 2; j++)
-                con = con + to_string(item_error[i](j)) + ",";
-        }
-        con = con + to_string(error) + "\n";
-        file << con;
+        double delta_time=para_agent_time[opt_frame_len - 1] - para_agent_time[0];
+        //con = to_string(delta_time) + ",";
+        // for (int i = 0; i < 4; i++)
+        // {
+        //     con = con + to_string(item_error[i].norm()) + ",";
+        //     for (int j = 0; j <= 2; j++)
+        //         con = con + to_string(item_error[i](j)) + ",";
+        // }
+        //con = con + to_string(error) + "\n";
+        //file << con;
         printf("%d ", opt_frame_len);
         // for (int i = 0; i <= 3; i++)
         // {
@@ -805,7 +863,7 @@ void sync_process()
         //     // printf("%lf ",para_bias[k][i][0]);
         //     // printf(")");
         // }
-        printf("error1==%lf \n", error);
+        //printf("error1==%lf \n", error);
         // for (int i = 1; i <= 3; i++)
         // {
         //     for (int j = 0; j <= 3; j++)
@@ -819,7 +877,7 @@ void sync_process()
         //     printf("%lf %lf %lf %lf", para_yaw[i][0]);
         // }
         double anchor_error=error;
-        file.close();
+        //file.close();
         error = 0;
         for (int i = 1; i <= 3; i++)
         {
@@ -835,7 +893,7 @@ void sync_process()
                                                                                                        para_TAG, range_mea[i][j][k], 1);
                     double res[2];
                     (*self_factor)(para_pos[i][j], para_yaw[i][j], para_anchor[k], para_bias[i][k], res);
-                    if(res[0]>0.2)continue;
+                    if(res[0]>uwb_outlier)continue;
                     err_agent_tag[k] += abs(res[0]);
                     cnt_tag[k]++;
                 }
@@ -857,7 +915,13 @@ void sync_process()
             ROS_INFO("(%lf %lf %lf %lf)", para_pos[j][opt_frame_len - 1][0], para_pos[j][opt_frame_len - 1][1],
                      para_pos[j][opt_frame_len - 1][2], para_yaw[j][opt_frame_len - 1][0]);
         }
-        if (error <= 0.1&&anchor_error<=0.15)
+        auto check=[last_error,error](){
+            if(last_error-error<=0.001&&last_error-error>0)return true;
+            if((last_error-error)/last_error<=opt_des)return true;
+            if(error<=opt_eps)return true;
+            return false;
+        }
+        if (check()&&delta_time>opt_time_lower)
         {
             ROS_INFO("begin cout matrix and anchor");
             for (int i = 0; i < ANCHORNUMBER; i++)
@@ -898,6 +962,10 @@ void sync_process()
             tf::quaternionEigenToMsg(q,rt_world.pose.orientation);
             pub_ag_pose[i].publish(rt_world);
         }
+        if(delta_time>opt_time_upper){
+            break;
+        }
+        last_error=error;
     }
 }
 int main(int argc, char **argv)
@@ -905,6 +973,13 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "loose");
     ros::NodeHandle n;
     ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Info);
+
+    if(argc==2){
+        string config_file = argv[1];
+        printf("config_file: %s\n", argv[1]);
+        readParameters(config_file);
+    }
+    
     ros::Subscriber sub_agent1_pose, sub_agent2_pose, sub_agent3_pose;
     ros::Subscriber sub_agent0_imu;
 

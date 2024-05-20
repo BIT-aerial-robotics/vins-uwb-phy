@@ -1,0 +1,19 @@
+body_T_hinge: !!opencv-matrix
+   rows: 4
+   cols: 4
+   dt: d
+   data: [0,0,0,-0.1,
+          0,0,0,0,
+          0,0,0,-0.03]
+
+
+opt_eps: 0.08
+opt_des: 0.02
+opt_time_upper: 60
+opt_time_lower: 3
+uwb_bias_beta_low: 0.95
+uwb_bias_beta_upp: 1.0
+uwb_bias_gama_low: 0.35
+uwb_bias_gama_upp: 0.44
+uwb_frame_delta: 0.25
+uwb_outlier: 0.2
