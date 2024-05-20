@@ -221,16 +221,20 @@ void readParameters(std::string config_file)
 
     USE_LOOSE=0;
     USE_KIN=0;
-    USE_KIN=fsSettings["use_kin"];
+    if(fsSettings["use_kin"].type()!=cv::FileNode::NONE)
+        USE_KIN=fsSettings["use_kin"];
     USELINE=0;
     USE_UWB=0;
-    USE_UWB=fsSettings["use_uwb"];
+    if(fsSettings["use_uwb"].type()!=cv::FileNode::NONE)
+        USE_UWB=fsSettings["use_uwb"];
     SIM_UWB=0;
     
     IMU_SAEM_FRE=1;
     imu_delta_fre=3;
+    if(fsSettings["imu_fre"].type()!=cv::FileNode::NONE)
     IMU_SAEM_FRE=fsSettings["imu_fre"];
     imu_delta_fre=3;
+    if(fsSettings["imu_delta"].type()!=cv::FileNode::NONE)
     imu_delta_fre=fsSettings["imu_delta"];
     MULAGENT=0;
     DEPEND=1;
@@ -241,6 +245,7 @@ void readParameters(std::string config_file)
     }
     else if(AGENT_NUMBER==2)uwbNum=3,lowNum=0;
     else uwbNum=3,lowNum=0;
+
     HINGE<<-0.1,0.00,-0.03;
     KIN_LENGTH=0.841;
     sigma_rt_6dof(0)=sigma_rt_6dof(1)=sigma_rt_6dof(2)=0.01;

@@ -60,6 +60,15 @@ body_T_cam1: !!opencv-matrix
        0.0, -1.0, 0.0, -0.00510000018402934,
         0., 0., 0., 1. ]
 
+body_T_cam1: !!opencv-matrix
+   rows: 4
+   cols: 4
+   dt: d
+   data: [ 0.0, 0.0, 1.0, 0.011739999987185,
+       -1.0, 0.0, 0.0, -0.0444195009768009,
+       0.0, -1.0, 0.0, -0.00510000018402934,
+        0., 0., 0., 1. ]
+
 #Multiple thread support
 multiple_thread: 1
 use_gpu: 1
