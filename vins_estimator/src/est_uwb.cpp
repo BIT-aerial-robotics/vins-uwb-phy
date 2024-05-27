@@ -42,8 +42,7 @@ double uwb_frame_delta=0.25;
 double uwb_outlier=0.2;
 Eigen::Matrix<double, 4, 1> sigma_vins_6dof_loose;
 Eigen::Matrix<double, 4, 1> sigma_bet_6dof_loose;
-MarginalizationInfo *last_marginalization_info;
-vector<double *> last_marginalization_parameter_blocks;
+
 // int rev_cnt[5];
 void agent_pose_callback(const nav_msgs::Odometry::ConstPtr &pose_msg, const int &idx)
 {
@@ -83,7 +82,7 @@ void center_pose_callback(const sensor_msgs::ImuConstPtr &imu_msg)
 }
 Eigen::Vector3d ps[5][MAX_SOL_LENGTH + 200], vs[5][MAX_SOL_LENGTH + 200], omega[5][MAX_SOL_LENGTH + 200];
 Eigen::Quaterniond qs[5][MAX_SOL_LENGTH + 200];
-double alpha[200], para_agent_time[MAX_SOL_LENGTH + 200];
+double alpha[MAX_SOL_LENGTH+200], para_agent_time[MAX_SOL_LENGTH + 200],beta[MAX_SOL_LENGTH+200];
 double range_mea[5][MAX_SOL_LENGTH + 200][10];
 double para_anchor[5][3];
 double para_anchor_est[5][3];
@@ -115,7 +114,7 @@ int long_window_len;
 ros::Publisher pub_anchor_pos[5];
 ros::Publisher pub_ag_rt[4];
 ros::Publisher pub_ag_pose[4];
-
+Eigen::Matrix4d distance_anchor;
 
 void readParametersEstUwb(std::string config_file)
 {
@@ -143,6 +142,14 @@ void readParametersEstUwb(std::string config_file)
         pre_calc_hinge[1]=T(1,3);
         pre_calc_hinge[2]=T(2,3);
     }
+    if(fsSettings["distance_anchor"].type()!=cv::FileNode::NONE)
+    {
+        cv::Mat cv_T;
+        fsSettings["distance_anchor"] >> cv_T;
+        Eigen::Matrix4d T;
+        cv::cv2eigen(cv_T, T);
+        distance_anchor=T;
+    }
     if(fsSettings["opt_eps"].type()!=cv::FileNode::NONE)
         opt_eps=fsSettings["opt_eps"];
     if(fsSettings["opt_des"].type()!=cv::FileNode::NONE)
@@ -160,6 +167,8 @@ void readParametersEstUwb(std::string config_file)
     if(fsSettings["uwb_bias_gama_low"].type()!=cv::FileNode::NONE)
         uwb_bias_gama_low=fsSettings["uwb_bias_gama_low"];
     if(fsSettings["uwb_bias_gama_upp"].type()!=cv::FileNode::NONE)
+        uwb_bias_gama_upp=fsSettings["uwb_bias_gama_upp"];
+    if(fsSettings["uwb_out"].type()!=cv::FileNode::NONE)
         uwb_bias_gama_upp=fsSettings["uwb_bias_gama_upp"];
 }
 void pub(int tot, int cnt)
@@ -366,6 +375,7 @@ void sync_process()
     int faile_num = 0;
     string filename = "/home/f404/est.csv";
     double last_error=10000;
+    int init_num=0;
     while (1)
     {
         ofstream file(filename, ios::app);
@@ -431,34 +441,33 @@ void sync_process()
             {
                 if (opt_frame_len == 0)
                 {
+                    double yaw=Utility::R2ypr(ot[0].Rs.toRotationMatrix()).x();
+                    yaw=Utility::normalizeAngleByAng(yaw);
                     para_pos[1][opt_frame_len][0] = 0;
                     para_pos[1][opt_frame_len][1] = 0;
                     para_pos[1][opt_frame_len][2] = 0;
                     para_yaw[1][opt_frame_len][0] = 0;
 
-                    para_pos[2][opt_frame_len][0] = 0;
-                    para_pos[2][opt_frame_len][1] = 0;
+                    // para_pos[2][opt_frame_len][0] = -0.728 ;
+                    // para_pos[2][opt_frame_len][1] = 0.420;
+                    // para_pos[2][opt_frame_len][2] = 0;
+                    // para_yaw[2][opt_frame_len][0] = 120;
+
+                    // para_pos[3][opt_frame_len][0] = -0.728;
+                    // para_pos[3][opt_frame_len][1] = -0.420;
+                    // para_pos[3][opt_frame_len][2] = 0;
+                    // para_yaw[3][opt_frame_len][0] = -120;
+                    
+                    para_yaw[1][opt_frame_len][0]=yaw;
+                    para_pos[2][opt_frame_len][0] = 0.420;//-0.728 ;
+                    para_pos[2][opt_frame_len][1] = 0.728;//0.420;
                     para_pos[2][opt_frame_len][2] = 0;
-                    para_yaw[2][opt_frame_len][0] = 0;
+                    para_yaw[2][opt_frame_len][0] = Utility::normalizeAngleByAng(yaw+120);
 
-                    para_pos[3][opt_frame_len][0] = 0;
-                    para_pos[3][opt_frame_len][1] = 0;
+                    para_pos[3][opt_frame_len][0] = -0.420;//-0.728;
+                    para_pos[3][opt_frame_len][1] = 0.728;//-0.420;
                     para_pos[3][opt_frame_len][2] = 0;
-                    para_yaw[3][opt_frame_len][0] = 0;
-                    // para_pos[1][opt_frame_len][0] = 0;
-                    // para_pos[1][opt_frame_len][1] = 0;
-                    // para_pos[1][opt_frame_len][2] = 0;
-                    // para_yaw[1][opt_frame_len][0] = 0;
-
-                    para_pos[2][opt_frame_len][0] = -0.728 ;
-                    para_pos[2][opt_frame_len][1] = 0.420;
-                    para_pos[2][opt_frame_len][2] = 0;
-                    para_yaw[2][opt_frame_len][0] = 120;
-
-                    para_pos[3][opt_frame_len][0] = -0.728;
-                    para_pos[3][opt_frame_len][1] = -0.420;
-                    para_pos[3][opt_frame_len][2] = 0;
-                    para_yaw[3][opt_frame_len][0] = -120;
+                    para_yaw[3][opt_frame_len][0] = Utility::normalizeAngleByAng(yaw-120);
 
                     para_anchor[0][0] = 0.5, para_anchor[0][1] = 1.0, para_anchor[0][2] = 5;
                     para_anchor[1][0] = 4.5, para_anchor[1][1] = 1.5, para_anchor[1][2] = 2.5;
@@ -504,9 +513,11 @@ void sync_process()
                     }
                 }
                 alpha[opt_frame_len] = (ot[0].Rs.toRotationMatrix())(2, 2);
+                double yaw=Utility::R2ypr(ot[0].Rs.toRotationMatrix()).x();
+                beta[opt_frame_len]=(Utility::normalizeAngleByAng(yaw));
                 para_agent_time[opt_frame_len] = time;
                 opt_frame_len++;
-                while (pose_agent_buf[1].size() > 0 && pose_agent_buf[1].begin()->first - time <= 0.025)
+                while (pose_agent_buf[1].size() > 0 && pose_agent_buf[1].begin()->first - time <= 0.02)
                     pose_agent_buf[1].erase(pose_agent_buf[1].begin());
                 //  if (opt_frame_len >= SOL_LENGTH)
                 //      break;
@@ -536,12 +547,12 @@ void sync_process()
             ceres::LossFunction *loss_function;
             loss_function = new ceres::HuberLoss(1.0);
             int upperIdx=opt_frame_len;
-            int lowerIdx=max(0,upperIdx-100);
+            int lowerIdx=max(0,upperIdx-120);
             for (int i = 1; i <= 3; i++)
             {
                 for (int k = lowerIdx+1; k < upperIdx; k++)
                 {
-                    kinFactor_bet_4dof_2 *bxt = new kinFactor_bet_4dof_2(para_pos[i][k], para_yaw[i][k], para_pos[i][k - 1], para_yaw[i][k - 1], para_agent_time[k] - para_agent_time[k - 1], sigma_bet_6dof_loose);
+                    kinFactor_bet_4dof_2 *bxt = new kinFactor_bet_4dof_2(para_pos[i][k], para_yaw[i][k], para_pos[i][k - 1], para_yaw[i][k - 1], para_agent_time[k] - para_agent_time[k - 1], sigma_bet_6dof_loose*(init_num<=50?10:1));
                     problem.AddResidualBlock(
                         new ceres::AutoDiffCostFunction<kinFactor_bet_4dof_2, 4, 3, 1, 3, 1>(bxt),
                         NULL,
@@ -549,7 +560,7 @@ void sync_process()
                 }
                 for (int k = lowerIdx; k < upperIdx; k++)
                 {
-                    kinFactor_bet_old_4dof_2 *bxt = new kinFactor_bet_old_4dof_2(para_pos[i][k], para_yaw[i][k], sigma_vins_6dof_loose);
+                    kinFactor_bet_old_4dof_2 *bxt = new kinFactor_bet_old_4dof_2(para_pos[i][k], para_yaw[i][k], sigma_vins_6dof_loose*(init_num<=50?10:1));
                     problem.AddResidualBlock(
                         new ceres::AutoDiffCostFunction<kinFactor_bet_old_4dof_2, 4, 3, 1>(bxt),
                         NULL,
@@ -594,6 +605,19 @@ void sync_process()
                     para_pos[1][k], para_yaw[1][k], para_pos[2][k], para_yaw[2][k],
                     para_pos[3][k], para_yaw[3][k]);
                 att_res_num+=1;
+
+                {
+                   
+                    UWBFactor_kin_yaw *yaw_factor = new UWBFactor_kin_yaw(ps[1][k], qs[1][k],
+                                                                       ps[2][k], qs[2][k], ps[3][k], qs[3][k],
+                                                                       pre_calc_hinge, beta[k], 0.01);
+                    problem.AddResidualBlock(
+                        new ceres::AutoDiffCostFunction<UWBFactor_kin_yaw, 1, 3, 1, 3, 1, 3, 1>(yaw_factor),
+                        loss_function,
+                        para_pos[1][k], para_yaw[1][k], para_pos[2][k], para_yaw[2][k],
+                        para_pos[3][k], para_yaw[3][k]);
+                    att_res_num+=1;
+                }
             }
             problem.SetParameterBlockConstant(para_pos[1][lowerIdx]);
             problem.SetParameterBlockConstant(para_yaw[1][lowerIdx]);
@@ -604,11 +628,12 @@ void sync_process()
             ceres::Solver::Options options;
             options.linear_solver_type = ceres::DENSE_SCHUR;
             options.trust_region_strategy_type = ceres::DOGLEG;
-            options.max_solver_time_in_seconds = 1.5;
-            options.max_num_iterations = 16;
+            options.max_solver_time_in_seconds = 0.5;
+            options.max_num_iterations = 8;
             ceres::Solver::Summary summary;
             ceres::Solve(options, &problem, &summary);
             std::cout << summary.BriefReport() << std::endl;
+            init_num+=1;
             //std::cout<<len_res_num<<"  "<<att_res_num<<"  "<<para_agent_time[upperIdx-1]-para_agent_time[lowerIdx]<<std::endl;
         }
 
@@ -617,7 +642,7 @@ void sync_process()
 
 
 
-        if (opt_frame_len>=300)
+        if (opt_frame_len>=300&&0)
         {
             ceres::Problem problem2;
             ceres::LossFunction *loss_function;
@@ -709,7 +734,8 @@ void sync_process()
             {
                 for (int j = 0; j < i; j++)
                 {
-                    double dis = (anchor_create_pos[i] - anchor_create_pos[j]).norm() + noise_normal_distribution(generator);
+                    double dis = distance_anchor(i,j);
+                    if(dis<=1)continue;
                     // printf("dis=== %lf ",dis);
                     UWBFactor_anchor_and_anchor *self_factor = new UWBFactor_anchor_and_anchor(dis, 0.02);
                     problem2.AddResidualBlock(
@@ -920,8 +946,8 @@ void sync_process()
             if((last_error-error)/last_error<=opt_des)return true;
             if(error<=opt_eps)return true;
             return false;
-        }
-        if (check()&&delta_time>opt_time_lower)
+        };
+        if (check()&&delta_time>opt_time_lower&&0)
         {
             ROS_INFO("begin cout matrix and anchor");
             for (int i = 0; i < ANCHORNUMBER; i++)
@@ -951,19 +977,21 @@ void sync_process()
             break;
         }
         for(int i=1;i<=3;i++){
-            geometry_msgs::PoseStamped rt_world;
+            nav_msgs::Odometry rt_world;
             rt_world.header.stamp=ros::Time(para_agent_time[opt_frame_len-1]);
             Eigen::Vector3d pos(para_pos[i][opt_frame_len-1]);
             Eigen::Quaterniond q{Utility::fromYawToMat(para_yaw[i][opt_frame_len-1][0])};
             pos=q*ps[i][opt_frame_len-1]+pos;
             q=q*qs[i][opt_frame_len-1];
             q.normalize();
-            tf::pointEigenToMsg(pos,rt_world.pose.position);
-            tf::quaternionEigenToMsg(q,rt_world.pose.orientation);
+            Eigen::Vector3d v=q*vs[i][opt_frame_len-1];
+            tf::pointEigenToMsg(pos,rt_world.pose.pose.position);
+            tf::quaternionEigenToMsg(q,rt_world.pose.pose.orientation);
+            tf::vectorEigenToMsg(v,rt_world.twist.twist.linear);
             pub_ag_pose[i].publish(rt_world);
         }
         if(delta_time>opt_time_upper){
-            break;
+            //break;
         }
         last_error=error;
     }
@@ -974,16 +1002,16 @@ int main(int argc, char **argv)
     ros::NodeHandle n;
     ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Info);
 
-    if(argc==2){
-        string config_file = argv[1];
-        printf("config_file: %s\n", argv[1]);
-        readParameters(config_file);
-    }
+    // if(argc==2){
+    //     string config_file = argv[1];
+    //     printf("config_file: %s\n", argv[1]);
+    //     //readParametersEstUwb(config_file);
+    // }
     
     ros::Subscriber sub_agent1_pose, sub_agent2_pose, sub_agent3_pose;
     ros::Subscriber sub_agent0_imu;
 
-    sigma_bet_6dof_loose(0) = sigma_bet_6dof_loose(1) = sigma_bet_6dof_loose(2) = 0.0025;
+    sigma_bet_6dof_loose(0) = sigma_bet_6dof_loose(1) = sigma_bet_6dof_loose(2) = 0.005;
     sigma_bet_6dof_loose(3) = 0.1;
     sigma_vins_6dof_loose(0) = sigma_vins_6dof_loose(1) = sigma_vins_6dof_loose(2) = 0.1;
     sigma_vins_6dof_loose(3) = 1;
@@ -1019,7 +1047,7 @@ int main(int argc, char **argv)
     for (int i = 1; i <= 3; i++)
     {
         pub_ag_rt[i] = n.advertise<geometry_msgs::PoseStamped>("/ag" + std::to_string(i) + "/rt_world", 500);
-        pub_ag_pose[i] = n.advertise<geometry_msgs::PoseStamped>("/ag" + std::to_string(i) + "/calib_pose", 500);
+        pub_ag_pose[i] = n.advertise<nav_msgs::Odometry>("/ag" + std::to_string(i) + "/calib_pose", 500);
     }
     std::thread sync_thread{sync_process};
     ros::spin();

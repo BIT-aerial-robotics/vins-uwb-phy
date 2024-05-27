@@ -771,7 +771,8 @@ struct UWBFactor_kin_att
         Pk(i)=pk[i];
         Dk(i)=(T)dk[i];
     }
-    Eigen::Matrix<T, 3, 3>Yawi=fromYawToMat(yi[0]),Yawj=fromYawToMat(yj[0]),
+    Eigen::Matrix<T, 3, 3>Yawi=fromYawToMat(yi[0]),
+    Yawj=fromYawToMat(yj[0]),
     Yawk=fromYawToMat(yk[0]);
     Pi=Yawi*Di+Pi;
     Pj=Yawj*Dj+Pj;
@@ -786,6 +787,75 @@ struct UWBFactor_kin_att
   Eigen::Vector3d di,dj,dk,vi,vj;
   double deltaTime;
   double info,z_val;
+};
+
+
+struct UWBFactor_kin_yaw
+{
+  UWBFactor_kin_yaw(Eigen::Vector3d pi,Eigen::Quaterniond qi,
+                    Eigen::Vector3d pj,Eigen::Quaterniond qj,
+                    Eigen::Vector3d pk,Eigen::Quaterniond qk,
+                    double para_hinge[],double _dyaw,double _info)
+  {
+    di=pi;
+    dj=pj;
+    ri=qi;
+    rj=qj;
+    dk=pk;
+    rk=qk;
+    di+=ri.toRotationMatrix()*(Eigen::Vector3d(para_hinge));
+    dj+=rj.toRotationMatrix()*(Eigen::Vector3d(para_hinge));
+    dk+=rk.toRotationMatrix()*(Eigen::Vector3d(para_hinge));
+    info=_info;
+    cos_dyaw=_dyaw;
+  }
+  template <typename T>
+  bool operator()(const T*  pi,const T* yi,const T* pj,const T* yj,const T* pk,const T* yk,T* residuals) const
+  {
+    Eigen::Matrix<T, 3, 1> Pi,Vi,Di,Pj,Dj,Pk,Dk;
+    for(int i=0;i<3;i++)
+    {
+        Pi(i)=pi[i];
+        Di(i)=(T)di(i);
+        Pj(i)=pj[i];
+        Dj(i)=(T)dj(i);
+        Pk(i)=pk[i];
+        Dk(i)=(T)dk[i];
+    }
+    Eigen::Matrix<T, 3, 3>Yawi=fromYawToMat(yi[0]),Yawj=fromYawToMat(yj[0]),
+    Yawk=fromYawToMat(yk[0]);
+    Pi=Yawi*Di+Pi;
+    Pj=Yawj*Dj+Pj;
+    Pk=Yawk*Dk+Pk;
+
+    Eigen::Matrix<T, 3, 1>center_p;
+    center_p=(Pi+Pj+Pk)/(T(3.0));
+    Eigen::Matrix<T, 3, 1>head_dir;
+    head_dir=Pi-center_p;
+    head_dir(2)=(T)0;
+    T head_2d_norm = head_dir.norm();
+    T cos_yaw = head_dir(0)/head_2d_norm;
+    T sin_yaw = head_dir(1)/head_2d_norm;
+
+    Eigen::Matrix<T, 3, 3>R_yaw,R_dyaw,dR,R_dyaw_inv;
+    R_yaw(0,0)=cos_yaw;R_yaw(0,1)=-sin_yaw;R_yaw(0,2)=(T)0;
+    R_yaw(1,0)=sin_yaw;R_yaw(1,1)=-cos_yaw;R_yaw(1,2)=(T)0;
+    R_yaw(2,0)=(T)0;R_yaw(2,1)=(T)0;R_yaw(2,2)=(T)0;
+    //R_yaw=fromYawToMat()
+    R_dyaw=fromYawToMat((T)(cos_dyaw));
+    R_dyaw_inv=R_dyaw.transpose();
+    dR=R_dyaw_inv*R_yaw;
+    //dR(2,2)=(T)1;
+    //Eigen::Quaternion<T>result{dR};
+    //result.normalize();
+    residuals[0] = (Utility::R2ypr2(dR).x())/(T(info));
+    return true;
+  }
+  Eigen::Quaterniond ri,rj,rk;
+  Eigen::Vector3d di,dj,dk,vi,vj;
+  double deltaTime;
+  double info,z_val;
+  double cos_dyaw;
 };
 
 

@@ -248,14 +248,14 @@ void readParameters(std::string config_file)
 
     HINGE<<-0.1,0.00,-0.03;
 
-    if(fsSettings["body_T_hinge"].type()!=cv::FileNode::NONE)
-    {
-        cv::Mat cv_T;
-        fsSettings["body_T_hinge"] >> cv_T;
-        Eigen::Matrix4d T;
-        cv::cv2eigen(cv_T, T);
-        HINGE=T.block<3,1>(3,0);
-    }
+    // if(fsSettings["body_T_hinge"].type()!=cv::FileNode::NONE)
+    // {
+    //     cv::Mat cv_T;
+    //     fsSettings["body_T_hinge"] >> cv_T;
+    //     Eigen::Matrix4d T;
+    //     cv::cv2eigen(cv_T, T);
+    //     HINGE=T.block<3,1>(3,0);
+    // }
     KIN_LENGTH=0.841;
     sigma_rt_6dof(0)=sigma_rt_6dof(1)=sigma_rt_6dof(2)=0.01;
     sigma_rt_6dof(3)=sigma_rt_6dof(4)=sigma_rt_6dof(5)=sigma_rt_6dof(6)=0.04;

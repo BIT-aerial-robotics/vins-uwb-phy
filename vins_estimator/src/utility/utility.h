@@ -178,7 +178,15 @@ class Utility
         return angle_degrees +
             two_pi * std::floor((-angle_degrees + T(180)) / two_pi);
     };
-
+    template <typename T>
+    static T normalizeAngleByAng(const T& angle_degrees) {
+      if (angle_degrees > T(180.0))
+            return angle_degrees - T(360.0);
+      else if (angle_degrees < T(-180.0))
+            return angle_degrees + T(360.0);
+      else
+            return angle_degrees;
+    };
     /*
         三点确定一个平面 a(x-x0)+b(y-y0)+c(z-z0)=0  --> ax + by + cz + d = 0   d = -(ax0 + by0 + cz0)
         平面通过点（x0,y0,z0）以及垂直于平面的法线（a,b,c）来得到

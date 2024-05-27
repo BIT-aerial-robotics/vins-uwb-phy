@@ -6,7 +6,14 @@ body_T_hinge: !!opencv-matrix
           0,0,0,0,
           0,0,0,-0.03]
 
-
+distance_anchor: !!opencv-matrix
+   rows: 4
+   cols: 4
+   dt: d
+   data: [0,0,0,0,
+      0,0,0,0,
+      0,0,0,0,
+      0,0,0,0]
 opt_eps: 0.08
 opt_des: 0.02
 opt_time_upper: 60

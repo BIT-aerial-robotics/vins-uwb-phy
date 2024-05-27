@@ -2,7 +2,7 @@
 
     
     
-    <arg name="sequence_1" default = "/home/f404/output/uwb/real_lab_5.bag" />
+    <arg name="sequence_1" default = "/home/f404/output/uwb/real/est_uwb/lab1/_2024-05-08-13-14-56.bag" />
     <node name="cent_estimator" pkg="vins" type="cent_node" output="screen"/>
     <node pkg="rosbag" type="play" name="player" output="log" 
     args="$(arg sequence_1) -r 2.5" />
@@ -11,7 +11,7 @@
     /mavros/imu/data
     /vrpn_client_node/ag0/pose
     /vrpn_client_node/ag0/twist
-    /ag0/imu_propagate
+    /ag0/vins_estimator/imu_propagate
     -o /home/f404/output/uwb/_cent" />
 
     <!-- <node name="rvizvisualisation" pkg="rviz" type="rviz" output="log" 

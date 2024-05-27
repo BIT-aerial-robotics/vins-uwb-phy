@@ -153,10 +153,11 @@ struct kinFactor_bet_4dof_2
     // cout<<delta_d.x()<<" "<<delta_d.y()<<" "<<delta_d.z()<<std::endl;
     Eigen::Matrix<T, 3, 1> pre_delta_p((T)delta_d.x(), (T)delta_d.y(), (T)delta_d.z()); //= dj-di;
     Eigen::Matrix<T, 3, 1> aft_delta_p = Pj - Pi;
+    aft_delta_p-=pre_delta_p;
     //aft_delta_p -= pre_delta_p;
     T aft_delta_yaw = yj[0] - yi[0];
     T pre_delta_yaw = (T)deltay;
-    //aft_delta_yaw -= pre_delta_yaw;
+    aft_delta_yaw -= pre_delta_yaw;
     residuals[0] = aft_delta_p(0);
     residuals[1] = aft_delta_p(1);
     residuals[2] = aft_delta_p(2);
@@ -235,7 +236,7 @@ struct kinFactor_bet_old_4dof_2
     residuals[0] = pre_p[0] - Pi[0];
     residuals[1] = pre_p[1] - Pi[1];
     residuals[2] = pre_p[2] - Pi[2];
-    residuals[3] = yawi - yi[0];
+    residuals[3] = (T)yawi - yi[0];
     for (int i = 0; i <= 3; i++)
     {
       residuals[i] = residuals[i] * (T)(1 / info(i));

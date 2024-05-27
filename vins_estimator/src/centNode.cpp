@@ -38,9 +38,6 @@ void self_odometry_callback_2(const geometry_msgs::PoseStampedConstPtr &msg, int
     Eigen::Vector3d ps, vs, ws;
     Eigen::Quaterniond rs;
     tf::pointMsgToEigen(msg->pose.position, ps);
-    
-    //tf::vectorMsgToEigen(msg->twist.twist.linear, vs);
-    //tf::vectorMsgToEigen(msg->twist.twist.angular, ws);
     tf::quaternionMsgToEigen(msg->pose.orientation, rs);
     OdometryVins tmp(ps,rs, msg->header.stamp.toSec());
     data[idx][tmp.time]=tmp;
@@ -53,7 +50,7 @@ void sync_process()
     {
         double time = 0;
         m_buf.lock();
-        //cout<<data[1].size()<<" "<<data[2].size()<<" "<<data[3].size()<<endl;
+        cout<<data[1].size()<<" "<<data[2].size()<<" "<<data[3].size()<<" "<<failnum<<endl;
         if (!data[1].empty())
         {
             bool f2=false,f3=false;
@@ -101,7 +98,6 @@ void sync_process()
                 tf::quaternionEigenToMsg(cent.Rs, odometry.pose.pose.orientation);
                 tf::vectorEigenToMsg(cent.Vs, odometry.twist.twist.linear);
                 pub_cent_odometry.publish(odometry);
-                //cout << ps << endl;
                 failnum=0;
                 data[1].erase(data[1].begin());
             }
@@ -131,8 +127,10 @@ int main(int argc, char **argv)
     pub_cent_odometry = n.advertise<nav_msgs::Odometry>("/ag0/vins_estimator/imu_propagate", 1000);
     for (int i = 1; i <= 3; i++)
     {
+        //calib_pose
         if(USE_GT==0)
-        sub_self_odometry[i] = n.subscribe<nav_msgs::Odometry>("/ag" + std::to_string(i) + "/vins_estimator/imu_propagate", 500, boost::bind(self_odometry_callback, _1, i));
+        sub_self_odometry[i] = n.subscribe<nav_msgs::Odometry>("/ag" + std::to_string(i) + "/calib_pose", 500, boost::bind(self_odometry_callback, _1, i));
+        //sub_self_odometry[i] = n.subscribe<nav_msgs::Odometry>("/ag" + std::to_string(i) + "/vins_estimator/imu_propagate", 500, boost::bind(self_odometry_callback, _1, i));
         else
         sub_self_odometry[i] = n.subscribe<geometry_msgs::PoseStamped>("/vrpn_client_node/ag" + std::to_string(i) + "/pose", 500, boost::bind(self_odometry_callback_2, _1, i));
     }
