@@ -235,8 +235,23 @@ double getNoiseRandomValue(double dis,Eigen::Vector3d eul)
     
     return noisy_value;//+abs(eul.x())/180*3.14*0.1+abs(eul.y())/180*3.14*0.08+abs(eul.z())/180*3.14*0.5;
 }
+
+nav_msgs::Path path_cent;
+ros::Publisher pub_path_cent;
 void ground_truth_callback(const nav_msgs::OdometryConstPtr &msg,int idx)
 {
+    if(idx==0&&AGENT_NUMBER==1){
+        if(estimator.to_world_rt_flag){
+            geometry_msgs::PoseStamped pose_stamped;
+            pose_stamped.header = msg->header;
+            pose_stamped.header.frame_id = "world";
+            pose_stamped.pose = msg->pose.pose;
+            path_cent.header = msg->header;
+            path_cent.header.frame_id = "world";
+            path_cent.poses.push_back(pose_stamped);
+            pub_path_cent.publish(path_cent);
+        }
+    }
     if(idx!=AGENT_NUMBER)return;
     m_buf.lock();
     Eigen::Vector3d ps,vs,ws;
@@ -260,9 +275,6 @@ void ground_truth_callback(const nav_msgs::OdometryConstPtr &msg,int idx)
             double range2=range+getNoiseRandomValue(range,Utility::R2ypr(rs.toRotationMatrix()));
             bool res=uwb_manager[i].addUWBMeasurements(0,time,range2);
             geometry_msgs::Pose raw_pose;
-            //raw_pose.position.x=range2;
-            //raw_pose.position.y=range;
-            //frame.nodes[i]=range;
             raw.poses.push_back(raw_pose);
             if(res){
                 double dis=uwb_manager[i].uwb_range_sol_data[0].back().range;
@@ -460,6 +472,8 @@ void self_odometry_callback(const nav_msgs::OdometryConstPtr &msg,int idx)
     
     //m_buf.unlock();
 }
+
+double z_val_min=1,z_val_max=-1;
 void center_imu_callback(const sensor_msgs::ImuConstPtr &imu_msg)
 {
     double t = imu_msg->header.stamp.toSec();
@@ -473,12 +487,19 @@ void center_imu_callback(const sensor_msgs::ImuConstPtr &imu_msg)
     Vector3d gyr(rx, ry, rz);
     Quaterniond q;
     tf::quaternionMsgToEigen(imu_msg->orientation,q);
+    Eigen::Matrix3d rot=q.toRotationMatrix();
+    double z_val=rot(2,2);
+    z_val_min=min(z_val_min,z_val);
+    z_val_max=max(z_val_max,z_val);
+    //if(AGENT_NUMBER==1)
+    //std::cout<<z_val_max<<"  ----   "<<z_val_min<<std::endl;
     OdometryVins tmp(Vector3d::Zero(),acc,gyr,q,imu_msg->header.stamp.toSec());
     estimator.inputOtherPose(0,tmp);
     return;
 }
 int main(int argc, char **argv)
 {
+
     ros::init(argc, argv, "vins_estimator");
     ros::NodeHandle n;
     ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Info);
@@ -539,6 +560,11 @@ int main(int argc, char **argv)
                 //anchor_create_pos[i](j)=anchor_create_pos[i](j)*2;
             }
         }
+
+        if(AGENT_NUMBER==1){
+            sub_gt[0]=n.subscribe<nav_msgs::Odometry>("/pose_0", 2000, boost::bind(ground_truth_callback, _1, 0));
+            pub_path_cent=n.advertise<nav_msgs::Path>("/ag0/vins_estimator/path", 1000);
+        }   
     }
     else{
         //sub_gt[3]=n.subscribe<geometry_msgs::PoseStamped>("/vrpn_client_node/ag3/pose", 2000, boost::bind(ground_truth_callback_2, _1, 3));

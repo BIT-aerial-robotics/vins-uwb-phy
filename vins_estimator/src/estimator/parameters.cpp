@@ -68,6 +68,8 @@ Eigen::Matrix<double,7,1>sigma_vins_6dof;
 int USE_LONG_WINDOW;
 double LINK_W,MOVE_W;
 int USE_LOOSE;
+int USE_GPU;
+int USE_GPU_ACC_FLOW;
 template <typename T>
 T readParam(ros::NodeHandle &n, std::string name)
 {
@@ -179,6 +181,10 @@ void readParameters(std::string config_file)
     std::string cam0Path = configPath + "/" + cam0Calib;
     CAM_NAMES.push_back(cam0Path);
 
+    if(fsSettings["use_gpu"].type()!=cv::FileNode::NONE)
+        USE_GPU = fsSettings["use_gpu"];
+    if(fsSettings["use_gpu_acc_flow"].type()!=cv::FileNode::NONE)
+        USE_GPU_ACC_FLOW = fsSettings["use_gpu_acc_flow"];
     if(NUM_OF_CAM == 2)
     {
         STEREO = 1;
@@ -227,7 +233,7 @@ void readParameters(std::string config_file)
     USE_UWB=0;
     if(fsSettings["use_uwb"].type()!=cv::FileNode::NONE)
         USE_UWB=fsSettings["use_uwb"];
-    SIM_UWB=0;
+    
     
     IMU_SAEM_FRE=1;
     imu_delta_fre=3;
@@ -236,10 +242,9 @@ void readParameters(std::string config_file)
     imu_delta_fre=3;
     if(fsSettings["imu_delta"].type()!=cv::FileNode::NONE)
     imu_delta_fre=fsSettings["imu_delta"];
-    MULAGENT=0;
-    DEPEND=1;
+    
     AGENT_NUMBER=fsSettings["agent_number"];
-    SIM_UE=0;
+    
     if(AGENT_NUMBER==1){
         uwbNum=3,lowNum=0;
     }
@@ -247,7 +252,6 @@ void readParameters(std::string config_file)
     else uwbNum=3,lowNum=0;
 
     HINGE<<-0.1,0.00,-0.03;
-
     // if(fsSettings["body_T_hinge"].type()!=cv::FileNode::NONE)
     // {
     //     cv::Mat cv_T;
@@ -265,5 +269,10 @@ void readParameters(std::string config_file)
     USE_LONG_WINDOW=0;
     LINK_W=0.04;
     MOVE_W=0.015;
+    SIM_UE=0;
+    SIM_UWB=0;
+    MULAGENT=0;
+    DEPEND=1;
+    USE_EST_UWB=1;
     fsSettings.release();
 }

@@ -12,12 +12,12 @@
 using namespace ros;
 using namespace Eigen;
 ros::Publisher pub_odometry, pub_latest_odometry,pub_world_odometry;
-ros::Publisher pub_path;
+ros::Publisher pub_path,pub_path_world;
 ros::Publisher pub_point_cloud, pub_margin_cloud;
 ros::Publisher pub_key_poses;
 ros::Publisher pub_camera_pose;
 ros::Publisher pub_camera_pose_visual;
-nav_msgs::Path path;
+nav_msgs::Path path,path_world;
 ros::Publisher pub_odometry_world;
 ros::Publisher pub_keyframe_pose;
 ros::Publisher pub_keyframe_point;
@@ -36,6 +36,7 @@ void registerPub(ros::NodeHandle &n)
     pub_latest_odometry = n.advertise<nav_msgs::Odometry>("vins_estimator/imu_propagate_noworld", 1000);
     pub_world_odometry = n.advertise<nav_msgs::Odometry>("vins_estimator/imu_propagate", 1000);
     pub_path = n.advertise<nav_msgs::Path>("vins_estimator/path", 1000);
+    pub_path_world = n.advertise<nav_msgs::Path>("world/path", 1000);
     pub_odometry = n.advertise<nav_msgs::Odometry>("vins_estimator/odometry", 1000);
     pub_odometry_world=n.advertise<nav_msgs::Odometry>("vins_estimator/odometry_world", 1000);
     pub_point_cloud = n.advertise<sensor_msgs::PointCloud>("vins_estimator/point_cloud", 1000);
@@ -85,13 +86,14 @@ void pubLatestOdometry(const Eigen::Vector3d &P, const Eigen::Quaterniond &Q, co
     odometry.twist.twist.linear.x = V.x();
     odometry.twist.twist.linear.y = V.y();
     odometry.twist.twist.linear.z = V.z();
-    //pub_latest_odometry.publish(odometry);
-    //tmp.getYawAndNorm();
     Eigen::Quaterniond qs=tmp.Rs;
-    Eigen::Vector3d ps=tmp.Ps,vs;
+    Eigen::Vector3d ps=tmp.Ps,vs,v_base,v_sp_base,v_sp;
     if(USE_LOOSE==0){
         ps=qs*(P+Q*HINGE)+ps;
-        vs=qs*V;
+        v_base=Q.toRotationMatrix().transpose()*V;
+        v_sp_base=v_base+W.cross(HINGE);
+        v_sp=Q.toRotationMatrix()*v_sp_base;
+        vs=qs*(v_sp);
         qs=qs*Q;
     }
     else{
@@ -100,14 +102,22 @@ void pubLatestOdometry(const Eigen::Vector3d &P, const Eigen::Quaterniond &Q, co
         qs=qs*Q;
         
     }
-    // ps=qs*P+ps;
-    // qs=qs*Q;
     qs.normalize();
     tf::vectorEigenToMsg(W,odometry.twist.twist.angular);
     tf::pointEigenToMsg(ps,odometry.pose.pose.position);
     tf::quaternionEigenToMsg(qs,odometry.pose.pose.orientation);
     tf::vectorEigenToMsg(vs,odometry.twist.twist.linear);
     pub_world_odometry.publish(odometry);
+
+    geometry_msgs::PoseStamped pose_stamped;
+    pose_stamped.header = odometry.header;
+    pose_stamped.header.frame_id = "world";
+    pose_stamped.pose = odometry.pose.pose;
+    path_world.header = odometry.header;
+    path_world.header.frame_id = "world";
+    path_world.poses.push_back(pose_stamped);
+
+    pub_path_world.publish(path_world);
 
 }
 void pubLatestOdometry(const Eigen::Vector3d &P, const Eigen::Quaterniond &Q, const Eigen::Vector3d &V, double t,double range[])

@@ -30,7 +30,7 @@ double pre_calc_length[1] = {para_LENGTH[0]};
 double sigma_hyp_loose = 0.01;
 double sigma_length_loose = 0.05;
 
-double opt_eps=0.08;
+double opt_eps=0.12;
 double opt_des=0.02;
 double opt_time_upper=60;
 double opt_time_lower=3;
@@ -612,7 +612,7 @@ void sync_process()
                                                                        ps[2][k], qs[2][k], ps[3][k], qs[3][k],
                                                                        pre_calc_hinge, beta[k], 0.01);
                     problem.AddResidualBlock(
-                        new ceres::AutoDiffCostFunction<UWBFactor_kin_yaw, 1, 3, 1, 3, 1, 3, 1>(yaw_factor),
+                        new ceres::AutoDiffCostFunction<UWBFactor_kin_yaw, 2, 3, 1, 3, 1, 3, 1>(yaw_factor),
                         loss_function,
                         para_pos[1][k], para_yaw[1][k], para_pos[2][k], para_yaw[2][k],
                         para_pos[3][k], para_yaw[3][k]);
@@ -642,7 +642,7 @@ void sync_process()
 
 
 
-        if (opt_frame_len>=300&&0)
+        if (opt_frame_len>=300)
         {
             ceres::Problem problem2;
             ceres::LossFunction *loss_function;
@@ -942,12 +942,12 @@ void sync_process()
                      para_pos[j][opt_frame_len - 1][2], para_yaw[j][opt_frame_len - 1][0]);
         }
         auto check=[last_error,error](){
-            if(last_error-error<=0.001&&last_error-error>0)return true;
+            if(last_error-error<=0.001)return true;
             if((last_error-error)/last_error<=opt_des)return true;
             if(error<=opt_eps)return true;
             return false;
         };
-        if (check()&&delta_time>opt_time_lower&&0)
+        if (check()&&delta_time>opt_time_lower)
         {
             ROS_INFO("begin cout matrix and anchor");
             for (int i = 0; i < ANCHORNUMBER; i++)
@@ -1002,11 +1002,11 @@ int main(int argc, char **argv)
     ros::NodeHandle n;
     ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Info);
 
-    // if(argc==2){
-    //     string config_file = argv[1];
-    //     printf("config_file: %s\n", argv[1]);
-    //     //readParametersEstUwb(config_file);
-    // }
+    if(argc==2){
+        string config_file = argv[1];
+        printf("config_file: %s\n", argv[1]);
+        readParametersEstUwb(config_file);
+    }
     
     ros::Subscriber sub_agent1_pose, sub_agent2_pose, sub_agent3_pose;
     ros::Subscriber sub_agent0_imu;

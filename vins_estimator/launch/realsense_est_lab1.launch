@@ -2,7 +2,8 @@
     <arg name="sequence_1" default = "/home/f404/datacol/realsense/2024-01-17-14-01-27.bag" />
     <arg name="sequence_uwb" default = "/home/f404/datacol/realsense/uwb/2024-01-17-14-01-27.bag" />
     <arg name="sequence_est" default="/home/f404/output/uwb/real/est_uwb/lab1/err0.2_2024-04-18-15-41-32.bag" />
-    <!-- <node name="vins_estimator_est_uwb" pkg="vins" type="est_uwb" output="screen"/> -->
+    <node name="cent_estimator" pkg="vins" type="cent_node" output="log"/>
+    <node name="vins_estimator_est_uwb" pkg="vins" type="est_uwb" output="screen"/>
     <group ns="ag1">
         <node name="vins_estimator" pkg="vins" type="vins_node" output="screen" args="/home/f404/catkin_tmp/src/VINS-Fusion/config/realsense_d435i_1_1944/realsense_stereo_imu_config.yaml"/>
     </group>
@@ -28,11 +29,13 @@
      /ag2/vins_estimator/imu_propagate /ag2/vins_estimator/imu_propagate_noworld  /vrpn_client_node/ag2/pose
     /ag1/vins_estimator/imu_propagate /ag1/vins_estimator/imu_propagate_noworld  /vrpn_client_node/ag1/pose
     /vrpn_client_node/ag0/pose
+    /vrpn_client_node/ag0/twist
     /vrpn_client_node/ag0_Marker1/pose
     /vrpn_client_node/ag1_Marker1/pose
     /vrpn_client_node/ag2_Marker1/pose
     /vrpn_client_node/ag3_Marker1/pose
     /mavros/imu/data
+    /ag0/vins_estimator/imu_propagate
     -o /home/f404/output/uwb/real/est_uwb/lab1/" />
     
 

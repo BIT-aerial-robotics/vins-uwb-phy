@@ -833,22 +833,31 @@ struct UWBFactor_kin_yaw
     Eigen::Matrix<T, 3, 1>head_dir;
     head_dir=Pi-center_p;
     head_dir(2)=(T)0;
-    T head_2d_norm = head_dir.norm();
-    T cos_yaw = head_dir(0)/head_2d_norm;
-    T sin_yaw = head_dir(1)/head_2d_norm;
+    head_dir/=head_dir.norm();
+    Eigen::Matrix<T,2,1>head,unit;
+    head(0)=head_dir(0);
+    head(1)=head_dir(1);
+    unit(0)=cos(cos_dyaw/T(180)*T(M_PI));
+    unit(1)=sin(cos_dyaw/T(180)*T(M_PI));
+    head-=(head.dot(unit))*unit;
+    residuals[0] = (head(0))/(T(info));
+    residuals[1] = (head(1))/(T(info));
+    // T head_2d_norm = head_dir.norm();
+    // T cos_yaw = head_dir(0)/head_2d_norm;
+    // T sin_yaw = head_dir(1)/head_2d_norm;
 
-    Eigen::Matrix<T, 3, 3>R_yaw,R_dyaw,dR,R_dyaw_inv;
-    R_yaw(0,0)=cos_yaw;R_yaw(0,1)=-sin_yaw;R_yaw(0,2)=(T)0;
-    R_yaw(1,0)=sin_yaw;R_yaw(1,1)=-cos_yaw;R_yaw(1,2)=(T)0;
-    R_yaw(2,0)=(T)0;R_yaw(2,1)=(T)0;R_yaw(2,2)=(T)0;
-    //R_yaw=fromYawToMat()
-    R_dyaw=fromYawToMat((T)(cos_dyaw));
-    R_dyaw_inv=R_dyaw.transpose();
-    dR=R_dyaw_inv*R_yaw;
+    // Eigen::Matrix<T, 3, 3>R_yaw,R_dyaw,dR,R_dyaw_inv;
+    // R_yaw(0,0)=cos_yaw;R_yaw(0,1)=-sin_yaw;R_yaw(0,2)=(T)0;
+    // R_yaw(1,0)=sin_yaw;R_yaw(1,1)=-cos_yaw;R_yaw(1,2)=(T)0;
+    // R_yaw(2,0)=(T)0;R_yaw(2,1)=(T)0;R_yaw(2,2)=(T)0;
+    // //R_yaw=fromYawToMat()
+    // R_dyaw=fromYawToMat((T)(cos_dyaw));
+    // R_dyaw_inv=R_dyaw.transpose();
+    // dR=R_dyaw_inv*R_yaw;
     //dR(2,2)=(T)1;
     //Eigen::Quaternion<T>result{dR};
     //result.normalize();
-    residuals[0] = (Utility::R2ypr2(dR).x())/(T(info));
+    //residuals[0] = (Utility::R2ypr2(dR).x())/(T(info));
     return true;
   }
   Eigen::Quaterniond ri,rj,rk;

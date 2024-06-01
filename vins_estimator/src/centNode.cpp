@@ -50,7 +50,7 @@ void sync_process()
     {
         double time = 0;
         m_buf.lock();
-        cout<<data[1].size()<<" "<<data[2].size()<<" "<<data[3].size()<<" "<<failnum<<endl;
+        //cout<<data[1].size()<<" "<<data[2].size()<<" "<<data[3].size()<<" "<<failnum<<endl;
         if (!data[1].empty())
         {
             bool f2=false,f3=false;
@@ -80,6 +80,16 @@ void sync_process()
                 }
                 ps /= 3;
                 vs /= 3;
+                // Eigen::Vector3d head_dir;
+                // head_dir=a_now[1].Ps-ps;
+                // head_dir(2)=0.0;
+                // double head_2d_norm = head_dir.norm();
+                // double cos_yaw = head_dir(0)/head_2d_norm;
+                // double sin_yaw = head_dir(1)/head_2d_norm;
+                // Eigen::Matrix3d R_yaw;
+                // R_yaw.setIdentity();
+                // R_yaw(0,0)=cos_yaw;R_yaw(0,1)=-sin_yaw;
+                // R_yaw(1,0)=sin_yaw;R_yaw(1,1)=-cos_yaw;
                 Eigen::Vector3d p1 = a_now[1].Ps - (a_now[2].Ps*0.5+a_now[3].Ps*0.5), p2 = a_now[2].Ps - a_now[3].Ps;
                 p1.normalize();
                 p2.normalize();
@@ -129,8 +139,8 @@ int main(int argc, char **argv)
     {
         //calib_pose
         if(USE_GT==0)
-        sub_self_odometry[i] = n.subscribe<nav_msgs::Odometry>("/ag" + std::to_string(i) + "/calib_pose", 500, boost::bind(self_odometry_callback, _1, i));
-        //sub_self_odometry[i] = n.subscribe<nav_msgs::Odometry>("/ag" + std::to_string(i) + "/vins_estimator/imu_propagate", 500, boost::bind(self_odometry_callback, _1, i));
+        //sub_self_odometry[i] = n.subscribe<nav_msgs::Odometry>("/ag" + std::to_string(i) + "/calib_pose", 500, boost::bind(self_odometry_callback, _1, i));
+        sub_self_odometry[i] = n.subscribe<nav_msgs::Odometry>("/ag" + std::to_string(i) + "/vins_estimator/imu_propagate", 500, boost::bind(self_odometry_callback, _1, i));
         else
         sub_self_odometry[i] = n.subscribe<geometry_msgs::PoseStamped>("/vrpn_client_node/ag" + std::to_string(i) + "/pose", 500, boost::bind(self_odometry_callback_2, _1, i));
     }

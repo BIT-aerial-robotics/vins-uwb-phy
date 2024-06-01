@@ -228,6 +228,7 @@ class Estimator
     int    kin_can[5][(WINDOW_SIZE + 1)*15];
     double uwb_mea[5][(WINDOW_SIZE + 1)*15];
     double para_imu_z_val[(WINDOW_SIZE+1)*15][1];
+    double para_imu_yaw_val[(WINDOW_SIZE+1)*15][1];
     Eigen::Vector3d kin_mea_ps[4][(WINDOW_SIZE + 1)*15];
     Eigen::Vector3d kin_mea_vs[4][(WINDOW_SIZE + 1)*15];
     Eigen::Quaterniond kin_mea_qs[4][(WINDOW_SIZE + 1)*15];

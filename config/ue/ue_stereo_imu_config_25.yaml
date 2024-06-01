@@ -18,6 +18,10 @@ estimate_extrinsic: 0   # 0  Have an accurate extrinsic parameters. We will trus
                         # 1  Have an initial guess about extrinsic parameters. We will optimize around your initial guess.
 
 agent_number: 2
+use_kin: 0
+use_uwb: 1
+imu_fre: 1
+imu_delta: 3
 # 右下前转前右下
 
 # body_T_cam0: !!opencv-matrix

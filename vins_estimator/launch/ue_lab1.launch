@@ -23,7 +23,7 @@
     /imu_2:=/ag3/imu_2
     /imu_1:=/ag1/imu_1
     /imu_3:=/ag2/imu_3
-    /imu_0:=/mavros/imu/data -r 0.4 --duration=85
+    /imu_0:=/mavros/imu/data -r 0.4 --duration=85 -d 15
     " />
     <!-- <node name="rvizvisualisation" pkg="rviz" type="rviz" output="log" args="-d /home/f404/catkin_ws/src/VINS-Fusion/config/multi_agent_rviz.rviz" /> -->
     <node pkg="rosbag" type="record" name="bag_record" output="log" args="
@@ -38,8 +38,8 @@
     /imu_0
     -o /home/f404/output/uwb/ue5/lab0601/" />
 
-    <node name="rvizvisualisation" pkg="rviz" type="rviz" output="log" 
-    args="-d /home/f404/catkin_tmp/src/VINS-Fusion/config/multi_agent_rviz.rviz" />
+    <!-- <node name="rvizvisualisation" pkg="rviz" type="rviz" output="log" 
+    args="-d /home/f404/catkin_tmp/src/VINS-Fusion/config/multi_agent_rviz.rviz" /> -->
 </launch>
 
 <!-- /imuOne_1:=/vins_1/mavros/imu/data /cam1:=/vins_1/cam1 
