@@ -267,7 +267,9 @@ void readParameters(std::string config_file)
         fsSettings["body_T_hinge"] >> cv_T;
         Eigen::Matrix4d T;
         cv::cv2eigen(cv_T, T);
-        HINGE=T.block<3,1>(3,0);
+        HINGE(0)=T(3,0);
+        HINGE(1)=T(3,1);
+        HINGE(2)=T(3,2);
     }
     KIN_LENGTH=0.841;
     sigma_rt_6dof(0)=sigma_rt_6dof(1)=sigma_rt_6dof(2)=0.01;

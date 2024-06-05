@@ -11,6 +11,8 @@
 #include "utility/visualization.h"
 #include "estimator/uwb_manager.h"
 #include "nlink_parser/LinktrackNodeframe2.h"
+
+const int FLY=1;
 Estimator estimator;
 queue<sensor_msgs::ImuConstPtr> imu_buf;
 queue<sensor_msgs::PointCloudConstPtr> feature_buf;
@@ -377,7 +379,13 @@ void rt_call_back(const geometry_msgs::PoseStampedConstPtr &msg)
 int idx_2_idx[]={3,8,1,2};
 void uwb_callback(const nlink_parser::LinktrackNodeframe2ConstPtr &msg)
 {
-    if(idx_2_idx[AGENT_NUMBER]!=(int)(msg->id))return;
+    if(FLY)
+    {
+        if(UWB_TAG_ID!=(int)(msg->id))return;
+    }
+    else{
+        if(idx_2_idx[AGENT_NUMBER]!=(int)(msg->id))return;
+    }
     uint32_t num_nodes = msg->nodes.size();
     nlink_parser::LinktrackNodeframe2 tmp=*msg;
     //遍历 nodes 数组
