@@ -2,13 +2,14 @@
 
     
     
-    <arg name="sequence_1" default = "/home/f404/output/uwb/real/est_uwb/lab1/_2024-05-28-15-29-01.bag" />
-    <node name="cent_estimator" pkg="vins" type="cent_node" output="screen"/>
+    <arg name="sequence_1" default = "/home/f404/output/uwb/real/est_uwb/lab1/_2024-05-29-18-30-13.bag" />
+    <node name="cent_node" pkg="vins" type="cent_node" output="screen"/>
     <node pkg="rosbag" type="play" name="player" output="log" 
     args="$(arg sequence_1) -r 2.5" />
     <!-- <node name="rvizvisualisation" pkg="rviz" type="rviz" output="log" args="-d /home/f404/catkin_ws/src/VINS-Fusion/config/multi_agent_rviz.rviz" /> -->
     <node pkg="rosbag" type="record" name="bag_record" output="log" args="
     /mavros/imu/data
+    /mavros/odometry/out
     /vrpn_client_node/ag0/pose
     /vrpn_client_node/ag0/twist
     /ag0/vins_estimator/imu_propagate

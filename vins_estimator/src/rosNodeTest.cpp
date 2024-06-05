@@ -491,8 +491,6 @@ void center_imu_callback(const sensor_msgs::ImuConstPtr &imu_msg)
     double z_val=rot(2,2);
     z_val_min=min(z_val_min,z_val);
     z_val_max=max(z_val_max,z_val);
-    //if(AGENT_NUMBER==1)
-    //std::cout<<z_val_max<<"  ----   "<<z_val_min<<std::endl;
     OdometryVins tmp(Vector3d::Zero(),acc,gyr,q,imu_msg->header.stamp.toSec());
     estimator.inputOtherPose(0,tmp);
     return;

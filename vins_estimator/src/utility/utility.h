@@ -271,11 +271,11 @@ class Utility
                 c2 * s3,   s1 * s2 * s3 + c1 * c3,   c1 * s2 * s3 - s1 * c3,
                 -s2,                  s1 * c2,                  c1 * c2;
         Eigen::Matrix3d R3=R2-R;
-        double diff=R3.lpNorm<1>();
+        //double diff=R3.lpNorm<1>();
         //printf("ypr2R and hand calc diff ==%lf",diff);
         double w1 = cos(phi);
         double w2 = sin(phi);
-        double d = w1/w2;      // 原点到直线的距离
+        //double d = w1/w2;      // 原点到直线的距离
         Eigen::Vector3d u1 = R.col(0);
         Eigen::Vector3d u2 = R.col(1);
         Eigen::Vector3d n = w1 * u1;

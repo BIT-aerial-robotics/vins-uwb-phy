@@ -71,17 +71,12 @@ target_link_libraries(vins_lib ${catkin_LIBRARIES} ${OpenCV_LIBS} ${CERES_LIBRAR
 add_executable(vins_node src/rosNodeTest.cpp)
 target_link_libraries(vins_node vins_lib) 
 
-add_executable(kitti_odom_test src/KITTIOdomTest.cpp)
-target_link_libraries(kitti_odom_test vins_lib) 
-
-add_executable(kitti_gps_test src/KITTIGPSTest.cpp)
-target_link_libraries(kitti_gps_test vins_lib) 
 
 add_executable(uwb_node src/uwbNode.cpp)
 target_link_libraries(uwb_node vins_lib) 
 
-add_executable(loose_node src/loose_node.cpp)
-target_link_libraries(loose_node vins_lib) 
+# add_executable(loose_node src/loose_node.cpp)
+# target_link_libraries(loose_node vins_lib) 
 
 
 add_executable(cent_node src/centNode.cpp)
@@ -90,8 +85,8 @@ target_link_libraries(cent_node vins_lib)
 add_executable(est_uwb src/est_uwb.cpp)
 target_link_libraries(est_uwb vins_lib) 
 
-add_executable(dataNode src/dataNode.cpp)
-target_link_libraries(dataNode vins_lib) 
+# add_executable(dataNode src/dataNode.cpp)
+# target_link_libraries(dataNode vins_lib) 
 
-add_executable(dataSol src/dataSol.cpp)
-target_link_libraries(dataSol vins_lib) 
+# add_executable(dataSol src/dataSol.cpp)
+# target_link_libraries(dataSol vins_lib) 

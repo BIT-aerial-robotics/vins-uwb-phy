@@ -14,7 +14,7 @@
 const int USE_TRUE = 1;
 const int USE_SIM = 0;
 const int SOL_LENGTH = 100;
-const int MAX_SOL_LENGTH = 10000;
+const int MAX_SOL_LENGTH = 15000;
 const int IMU_PROPAGATE = 1;
 const int USE_UWB_INIT = 1;
 std::mutex m_buf;
@@ -106,10 +106,6 @@ std::default_random_engine generator;
 std::normal_distribution<double> noise_normal_distribution(0.05, 0.001);
 
 ceres::Problem problem2;
-double para_bias_est[5][5][2000][1];
-double range_mea_est[5][2000][10];
-Eigen::Vector3d tag_pos[5][2000];
-int long_window_len;
 
 ros::Publisher pub_anchor_pos[5];
 ros::Publisher pub_ag_rt[4];
@@ -410,7 +406,6 @@ void sync_process()
         }
 
         int last_opt_frame_len = opt_frame_len;
-        //printf("receive data begin\n");
         while (pose_agent_buf[1].size() > 0)
         {
             // if (faile_num >= 400)
@@ -448,6 +443,7 @@ void sync_process()
                     para_pos[1][opt_frame_len][2] = 0;
                     para_yaw[1][opt_frame_len][0] = 0;
 
+
                     // para_pos[2][opt_frame_len][0] = -0.728 ;
                     // para_pos[2][opt_frame_len][1] = 0.420;
                     // para_pos[2][opt_frame_len][2] = 0;
@@ -458,14 +454,14 @@ void sync_process()
                     // para_pos[3][opt_frame_len][2] = 0;
                     // para_yaw[3][opt_frame_len][0] = -120;
                     
-                    para_yaw[1][opt_frame_len][0]=yaw;
-                    para_pos[2][opt_frame_len][0] = 0.420;//-0.728 ;
-                    para_pos[2][opt_frame_len][1] = 0.728;//0.420;
+                    para_yaw[1][opt_frame_len][0]=  yaw;
+                    para_pos[2][opt_frame_len][0] = cos(yaw)*(-0.728)-sin(yaw)*0.420;//-0.728 ;
+                    para_pos[2][opt_frame_len][1] = sin(yaw)*(-0.728)+cos(yaw)*0.420;//0.420;
                     para_pos[2][opt_frame_len][2] = 0;
                     para_yaw[2][opt_frame_len][0] = Utility::normalizeAngleByAng(yaw+120);
 
-                    para_pos[3][opt_frame_len][0] = -0.420;//-0.728;
-                    para_pos[3][opt_frame_len][1] = 0.728;//-0.420;
+                    para_pos[3][opt_frame_len][0] = cos(yaw)*(-0.728)-sin(yaw)*(-0.420);//-0.728;
+                    para_pos[3][opt_frame_len][1] = sin(yaw)*(-0.728)+cos(yaw)*(-0.420);//-0.420;
                     para_pos[3][opt_frame_len][2] = 0;
                     para_yaw[3][opt_frame_len][0] = Utility::normalizeAngleByAng(yaw-120);
 
@@ -529,15 +525,12 @@ void sync_process()
         if (opt_frame_len <= 0 || opt_frame_len <= last_opt_frame_len)
         {
             m_buf.unlock();
+            ROS_INFO("wait data  wait data");
             faile_num++;
             continue;
         }
         faile_num = 0;
         sys_cnt += 1;
-        // std::cout << sys_cnt << " " << opt_frame_len;
-        //printf("receive data finish\n");
-        // printf("%lf %lf\n", para_agent_time[0], para_agent_time[opt_frame_len - 1]);
-        
         int not_memory = 5;
         
         ceres::Problem problem;
@@ -752,7 +745,186 @@ void sync_process()
             ceres::Solve(options2, &problem2, &summary2);
             std::cout << summary2.BriefReport() << std::endl;
         }
-        if (0)
+        
+        // printf("wdafsufsk  dasflfa");
+        if (opt_frame_len >= MAX_SOL_LENGTH)
+        {
+            ROS_INFO("initized uwb anchor positon and rot matrix failed too many data");
+            ROS_INFO("initized uwb anchor positon and rot matrix failed too many data");
+            ROS_INFO("initized uwb anchor positon and rot matrix failed too many data");
+            
+            break;
+        }
+        m_buf.unlock();
+
+        printf("delta T =%lf ", para_agent_time[opt_frame_len - 1] - para_agent_time[0]);
+        // MatrixXd pointsA(4, 3), pointsB(4, 3);
+        // for (int i = 0; i <= 3; i++)
+        // {
+        //     pointsA.row(i) << para_anchor[i][0], para_anchor[i][1], para_anchor[i][2];
+        //     pointsB.row(i) << anchor_create_pos[i](0), anchor_create_pos[i](1), anchor_create_pos[i](2);
+        // }
+        // Matrix3d rotation;
+        // Vector3d translation;
+        // alignPoints(pointsA, pointsB, rotation, translation);
+        // vector<Eigen::Vector3d> item_error(4, Eigen::Vector3d::Zero());
+        // double error = computeError(pointsA, pointsB, rotation, translation, item_error);
+        double error=0;
+        double delta_time=para_agent_time[opt_frame_len - 1] - para_agent_time[0];
+
+        printf("%d ", opt_frame_len);
+        
+        //double anchor_error=error;
+        //file.close();
+        error = 0;
+        for (int i = 1; i <= 3; i++)
+        {
+            double err_agent = 0, err_agent_tag[5] = {0, 0, 0, 0, 0};
+            int cnt_tag[5]={1,1,1,1,1};
+            for (int j = 0; j < opt_frame_len; j++)
+            {
+                if (tag_data_use[i][j] == 0)
+                    continue;
+                for (int k = 0; k <= 3; k++)
+                {
+                    UWBFactor_connect_4dof_plus_mul *self_factor = new UWBFactor_connect_4dof_plus_mul(ps[i][j], qs[i][j],
+                                                                                                       para_TAG, range_mea[i][j][k], 1);
+                    double res[2];
+                    (*self_factor)(para_pos[i][j], para_yaw[i][j], para_anchor[k], para_bias[i][k], res);
+                    if(res[0]>uwb_outlier)continue;
+                    err_agent_tag[k] += abs(res[0]);
+                    cnt_tag[k]++;
+                }
+            }
+            for (int k = 0; k <= 3; k++)
+            {
+                err_agent_tag[k] /= cnt_tag[k];
+                // printf("tag%d,err_mean=%lf ",k,err_agent_tag[k]);
+                err_agent += err_agent_tag[k];
+            }
+            err_agent /= 4;
+            printf("alltag %d err_mean===%lf   ",i,err_agent);
+            error += err_agent;
+        }
+        error/=3;
+        printf("allagent err_all %lf\n", error);
+        for (int j = 1; j <= 3; j++)
+        {
+            ROS_INFO("(%lf %lf %lf %lf)", para_pos[j][opt_frame_len - 1][0], para_pos[j][opt_frame_len - 1][1],
+                     para_pos[j][opt_frame_len - 1][2], para_yaw[j][opt_frame_len - 1][0]);
+        }
+        auto check=[last_error,error](){
+            if(last_error-error<=0.001)return true;
+            if((last_error-error)/last_error<=opt_des)return true;
+            if(error<=opt_eps)return true;
+            return false;
+        };
+        if (check()&&delta_time>opt_time_lower)
+        {
+            ROS_INFO("begin cout matrix and anchor");
+            ros::Rate loop_rate_pub_data(100);
+            int pub_time=10;
+            while(pub_time--){
+                loop_rate_pub_data.sleep();
+                for (int i = 0; i < ANCHORNUMBER; i++)
+                {
+                    nav_msgs::Odometry dat;
+                    dat.header.stamp=ros::Time(para_agent_time[opt_frame_len-1]);
+                    dat.pose.pose.position.x = para_anchor[i][0];
+                    dat.pose.pose.position.y = para_anchor[i][1];
+                    dat.pose.pose.position.z = para_anchor[i][2];
+                    for (int j = 1; j <= 3; j++)
+                    {
+                        dat.twist.covariance[(j - 1) * 2 + 0] = para_bias[j][i][0],
+                                                        dat.twist.covariance[(j - 1) * 2 + 1] = para_bias[j][i][1];
+                        cout<<i<<" "<<j<<" "<<para_bias[j][i][0]<<"  "<<para_bias[j][i][1]<<endl;
+                    }
+                    pub_anchor_pos[i].publish(dat);
+                }
+                for(int i=1;i<=3;i++){
+                    geometry_msgs::PoseStamped rt_world;
+                    rt_world.header.stamp=ros::Time(para_agent_time[opt_frame_len-1]);
+                    Eigen::Vector3d pos(para_pos[i][opt_frame_len-1]);
+                    Eigen::Quaterniond q{Utility::fromYawToMat(para_yaw[i][opt_frame_len-1][0])};
+                    tf::pointEigenToMsg(pos,rt_world.pose.position);
+                    tf::quaternionEigenToMsg(q,rt_world.pose.orientation);
+                    pub_ag_rt[i].publish(rt_world);
+                }
+            }
+            
+            break;
+        }
+        
+        if(delta_time>opt_time_upper){
+            
+            ROS_INFO("initized uwb anchor positon and rot matrix failed too long time");
+            ROS_INFO("initized uwb anchor positon and rot matrix failed too long time");
+            ROS_INFO("initized uwb anchor positon and rot matrix failed too long time");
+            break;
+        }
+        last_error=error;
+    }
+}
+int main(int argc, char **argv)
+{
+    ros::init(argc, argv, "loose");
+    ros::NodeHandle n;
+    ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Info);
+
+    if(argc==2){
+        string config_file = argv[1];
+        printf("config_file: %s\n", argv[1]);
+        readParametersEstUwb(config_file);
+    }
+    
+    ros::Subscriber sub_agent1_pose, sub_agent2_pose, sub_agent3_pose;
+    ros::Subscriber sub_agent0_imu;
+
+    sigma_bet_6dof_loose(0) = sigma_bet_6dof_loose(1) = sigma_bet_6dof_loose(2) = 0.005;
+    sigma_bet_6dof_loose(3) = 0.1;
+    sigma_vins_6dof_loose(0) = sigma_vins_6dof_loose(1) = sigma_vins_6dof_loose(2) = 0.1;
+    sigma_vins_6dof_loose(3) = 1;
+    if (USE_SIM == 0)
+        sub_agent0_imu = n.subscribe("/mavros/imu/data", 2000, center_pose_callback);
+    else
+        sub_agent0_imu = n.subscribe("/imu_0", 2000, center_pose_callback);
+
+    if (USE_SIM)
+    {
+        para_HINGE[2] = 0.0;
+        para_LENGTH[0] = 0.957;
+        pre_calc_hinge[2] = para_HINGE[2];
+        pre_calc_length[0] = para_LENGTH[0];
+    }
+    if (IMU_PROPAGATE == 1)
+    {
+        sub_agent1_pose = n.subscribe<nav_msgs::Odometry>("/ag1/vins_estimator/imu_propagate_noworld", 2000, boost::bind(agent_pose_callback, _1, 1));
+        sub_agent2_pose = n.subscribe<nav_msgs::Odometry>("/ag2/vins_estimator/imu_propagate_noworld", 2000, boost::bind(agent_pose_callback, _1, 2));
+        sub_agent3_pose = n.subscribe<nav_msgs::Odometry>("/ag3/vins_estimator/imu_propagate_noworld", 2000, boost::bind(agent_pose_callback, _1, 3));
+    }
+    else
+    {
+        sub_agent1_pose = n.subscribe<nav_msgs::Odometry>("/ag1/odometry", 2000, boost::bind(agent_pose_callback, _1, 1));
+        sub_agent2_pose = n.subscribe<nav_msgs::Odometry>("/ag2/odometry", 2000, boost::bind(agent_pose_callback, _1, 2));
+        sub_agent3_pose = n.subscribe<nav_msgs::Odometry>("/ag3/odometry", 2000, boost::bind(agent_pose_callback, _1, 3));
+    }
+    for (int i = 0; i < ANCHORNUMBER; i++)
+    {
+        pub_anchor_pos[i] = n.advertise<nav_msgs::Odometry>("/anchor_pos" + std::to_string(i), 500);
+    }
+
+    for (int i = 1; i <= 3; i++)
+    {
+        pub_ag_rt[i] = n.advertise<geometry_msgs::PoseStamped>("/ag" + std::to_string(i) + "/rt_world", 500);
+        pub_ag_pose[i] = n.advertise<nav_msgs::Odometry>("/ag" + std::to_string(i) + "/calib_pose", 500);
+    }
+    std::thread sync_thread{sync_process};
+    ros::spin();
+}
+
+
+/*
+if (0)
         {
 
             for (int i = 0; i < ANCHORNUMBER; i++)
@@ -822,60 +994,23 @@ void sync_process()
                 printf("\n");
             }
         }
-        // printf("wdafsufsk  dasflfa");
-        if (opt_frame_len >= MAX_SOL_LENGTH)
-        {
-            // for (int i = 0; i < opt_frame_len - not_memory; i++)
-            // {
-            //     for (int j = 1; j <= 3; j++)
-            //     {
-            //         para_yaw[j][i][0] = para_yaw[j][i + not_memory][0];
-            //         for (int k = 0; k <= 2; k++)
-            //             para_pos[j][i][k] = para_pos[j][i + not_memory][k];
-            //         ps[j][i] = ps[j][i + not_memory];
-            //         vs[j][i] = vs[j][i + not_memory];
-            //         omega[j][i] = omega[j][i + not_memory];
-            //         qs[j][i] = qs[j][i + not_memory];
-            //         alpha[i] = alpha[i + not_memory];
-            //         para_agent_time[i] = para_agent_time[i + not_memory];
-            //         for (int k = 0; k <= 3; k++)
-            //         {
-            //             range_mea[j][i][k] = range_mea[j][i + not_memory][k];
-            //         }
-            //     }
-            // }
-            // opt_frame_len -= not_memory;
-            break;
-        }
-        m_buf.unlock();
 
-        printf("delta T =%lf ", para_agent_time[opt_frame_len - 1] - para_agent_time[0]);
-        MatrixXd pointsA(4, 3), pointsB(4, 3);
-        for (int i = 0; i <= 3; i++)
-        {
-            pointsA.row(i) << para_anchor[i][0], para_anchor[i][1], para_anchor[i][2];
-            pointsB.row(i) << anchor_create_pos[i](0), anchor_create_pos[i](1), anchor_create_pos[i](2);
-        }
-        Matrix3d rotation;
-        Vector3d translation;
-        alignPoints(pointsA, pointsB, rotation, translation);
-        // printf("allign\n");
-        //  计算匹配误差
-        vector<Eigen::Vector3d> item_error(4, Eigen::Vector3d::Zero());
-        double error = computeError(pointsA, pointsB, rotation, translation, item_error);
-        string con = "";
-        double delta_time=para_agent_time[opt_frame_len - 1] - para_agent_time[0];
-        //con = to_string(delta_time) + ",";
-        // for (int i = 0; i < 4; i++)
-        // {
-        //     con = con + to_string(item_error[i].norm()) + ",";
-        //     for (int j = 0; j <= 2; j++)
-        //         con = con + to_string(item_error[i](j)) + ",";
+
+// for(int i=1;i<=3;i++){
+        //     nav_msgs::Odometry rt_world;
+        //     rt_world.header.stamp=ros::Time(para_agent_time[opt_frame_len-1]);
+        //     Eigen::Vector3d pos(para_pos[i][opt_frame_len-1]);
+        //     Eigen::Quaterniond q{Utility::fromYawToMat(para_yaw[i][opt_frame_len-1][0])};
+        //     pos=q*ps[i][opt_frame_len-1]+pos;
+        //     q=q*qs[i][opt_frame_len-1];
+        //     q.normalize();
+        //     Eigen::Vector3d v=q*vs[i][opt_frame_len-1];
+        //     tf::pointEigenToMsg(pos,rt_world.pose.pose.position);
+        //     tf::quaternionEigenToMsg(q,rt_world.pose.pose.orientation);
+        //     tf::vectorEigenToMsg(v,rt_world.twist.twist.linear);
+        //     pub_ag_pose[i].publish(rt_world);
         // }
-        //con = con + to_string(error) + "\n";
-        //file << con;
-        printf("%d ", opt_frame_len);
-        // for (int i = 0; i <= 3; i++)
+// for (int i = 0; i <= 3; i++)
         // {
         //     printf("xyz (");
         //     for (int k = 0; k <= 2; k++)
@@ -902,153 +1037,37 @@ void sync_process()
         // {
         //     printf("%lf %lf %lf %lf", para_yaw[i][0]);
         // }
-        double anchor_error=error;
-        //file.close();
-        error = 0;
-        for (int i = 1; i <= 3; i++)
-        {
-            double err_agent = 0, err_agent_tag[5] = {0, 0, 0, 0, 0};
-            int cnt_tag[5]={1,1,1,1,1};
-            for (int j = 0; j < opt_frame_len; j++)
-            {
-                if (tag_data_use[i][j] == 0)
-                    continue;
-                for (int k = 0; k <= 3; k++)
-                {
-                    UWBFactor_connect_4dof_plus_mul *self_factor = new UWBFactor_connect_4dof_plus_mul(ps[i][j], qs[i][j],
-                                                                                                       para_TAG, range_mea[i][j][k], 1);
-                    double res[2];
-                    (*self_factor)(para_pos[i][j], para_yaw[i][j], para_anchor[k], para_bias[i][k], res);
-                    if(res[0]>uwb_outlier)continue;
-                    err_agent_tag[k] += abs(res[0]);
-                    cnt_tag[k]++;
-                }
-            }
-            for (int k = 0; k <= 3; k++)
-            {
-                err_agent_tag[k] /= cnt_tag[k];
-                // printf("tag%d,err_mean=%lf ",k,err_agent_tag[k]);
-                err_agent += err_agent_tag[k];
-            }
-            err_agent /= 4;
-            printf("alltag %d err_mean===%lf   ",i,err_agent);
-            error += err_agent;
-        }
-        error/=3;
-        printf("allagent err_all %lf\n", error);
-        for (int j = 1; j <= 3; j++)
-        {
-            ROS_INFO("(%lf %lf %lf %lf)", para_pos[j][opt_frame_len - 1][0], para_pos[j][opt_frame_len - 1][1],
-                     para_pos[j][opt_frame_len - 1][2], para_yaw[j][opt_frame_len - 1][0]);
-        }
-        auto check=[last_error,error](){
-            if(last_error-error<=0.001)return true;
-            if((last_error-error)/last_error<=opt_des)return true;
-            if(error<=opt_eps)return true;
-            return false;
-        };
-        if (check()&&delta_time>opt_time_lower)
-        {
-            ROS_INFO("begin cout matrix and anchor");
-            for (int i = 0; i < ANCHORNUMBER; i++)
-            {
-                nav_msgs::Odometry dat;
-                dat.header.stamp=ros::Time(para_agent_time[opt_frame_len-1]);
-                dat.pose.pose.position.x = para_anchor[i][0];
-                dat.pose.pose.position.y = para_anchor[i][1];
-                dat.pose.pose.position.z = para_anchor[i][2];
-                for (int j = 1; j <= 3; j++)
-                {
-                    dat.twist.covariance[(j - 1) * 2 + 0] = para_bias[j][i][0],
-                                                       dat.twist.covariance[(j - 1) * 2 + 1] = para_bias[j][i][1];
-                    cout<<i<<" "<<j<<" "<<para_bias[j][i][0]<<"  "<<para_bias[j][i][1]<<endl;
-                }
-                pub_anchor_pos[i].publish(dat);
-            }
-            for(int i=1;i<=3;i++){
-                geometry_msgs::PoseStamped rt_world;
-                rt_world.header.stamp=ros::Time(para_agent_time[opt_frame_len-1]);
-                Eigen::Vector3d pos(para_pos[i][opt_frame_len-1]);
-                Eigen::Quaterniond q{Utility::fromYawToMat(para_yaw[i][opt_frame_len-1][0])};
-                tf::pointEigenToMsg(pos,rt_world.pose.position);
-                tf::quaternionEigenToMsg(q,rt_world.pose.orientation);
-                pub_ag_rt[i].publish(rt_world);
-            }
-            break;
-        }
-        for(int i=1;i<=3;i++){
-            nav_msgs::Odometry rt_world;
-            rt_world.header.stamp=ros::Time(para_agent_time[opt_frame_len-1]);
-            Eigen::Vector3d pos(para_pos[i][opt_frame_len-1]);
-            Eigen::Quaterniond q{Utility::fromYawToMat(para_yaw[i][opt_frame_len-1][0])};
-            pos=q*ps[i][opt_frame_len-1]+pos;
-            q=q*qs[i][opt_frame_len-1];
-            q.normalize();
-            Eigen::Vector3d v=q*vs[i][opt_frame_len-1];
-            tf::pointEigenToMsg(pos,rt_world.pose.pose.position);
-            tf::quaternionEigenToMsg(q,rt_world.pose.pose.orientation);
-            tf::vectorEigenToMsg(v,rt_world.twist.twist.linear);
-            pub_ag_pose[i].publish(rt_world);
-        }
-        if(delta_time>opt_time_upper){
-            //break;
-        }
-        last_error=error;
-    }
-}
-int main(int argc, char **argv)
-{
-    ros::init(argc, argv, "loose");
-    ros::NodeHandle n;
-    ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Info);
 
-    if(argc==2){
-        string config_file = argv[1];
-        printf("config_file: %s\n", argv[1]);
-        readParametersEstUwb(config_file);
-    }
-    
-    ros::Subscriber sub_agent1_pose, sub_agent2_pose, sub_agent3_pose;
-    ros::Subscriber sub_agent0_imu;
 
-    sigma_bet_6dof_loose(0) = sigma_bet_6dof_loose(1) = sigma_bet_6dof_loose(2) = 0.005;
-    sigma_bet_6dof_loose(3) = 0.1;
-    sigma_vins_6dof_loose(0) = sigma_vins_6dof_loose(1) = sigma_vins_6dof_loose(2) = 0.1;
-    sigma_vins_6dof_loose(3) = 1;
-    if (USE_SIM == 0)
-        sub_agent0_imu = n.subscribe("/mavros/imu/data", 2000, center_pose_callback);
-    else
-        sub_agent0_imu = n.subscribe("/imu_0", 2000, center_pose_callback);
+        //con = to_string(delta_time) + ",";
+        // for (int i = 0; i < 4; i++)
+        // {
+        //     con = con + to_string(item_error[i].norm()) + ",";
+        //     for (int j = 0; j <= 2; j++)
+        //         con = con + to_string(item_error[i](j)) + ",";
+        // }
+        //con = con + to_string(error) + "\n";
+        //file << con;
 
-    if (USE_SIM)
-    {
-        para_HINGE[2] = 0.0;
-        para_LENGTH[0] = 0.957;
-        pre_calc_hinge[2] = para_HINGE[2];
-        pre_calc_length[0] = para_LENGTH[0];
-    }
-    if (IMU_PROPAGATE == 1)
-    {
-        sub_agent1_pose = n.subscribe<nav_msgs::Odometry>("/ag1/vins_estimator/imu_propagate_noworld", 2000, boost::bind(agent_pose_callback, _1, 1));
-        sub_agent2_pose = n.subscribe<nav_msgs::Odometry>("/ag2/vins_estimator/imu_propagate_noworld", 2000, boost::bind(agent_pose_callback, _1, 2));
-        sub_agent3_pose = n.subscribe<nav_msgs::Odometry>("/ag3/vins_estimator/imu_propagate_noworld", 2000, boost::bind(agent_pose_callback, _1, 3));
-    }
-    else
-    {
-        sub_agent1_pose = n.subscribe<nav_msgs::Odometry>("/ag1/odometry", 2000, boost::bind(agent_pose_callback, _1, 1));
-        sub_agent2_pose = n.subscribe<nav_msgs::Odometry>("/ag2/odometry", 2000, boost::bind(agent_pose_callback, _1, 2));
-        sub_agent3_pose = n.subscribe<nav_msgs::Odometry>("/ag3/odometry", 2000, boost::bind(agent_pose_callback, _1, 3));
-    }
-    for (int i = 0; i < ANCHORNUMBER; i++)
-    {
-        pub_anchor_pos[i] = n.advertise<nav_msgs::Odometry>("/anchor_pos" + std::to_string(i), 500);
-    }
 
-    for (int i = 1; i <= 3; i++)
-    {
-        pub_ag_rt[i] = n.advertise<geometry_msgs::PoseStamped>("/ag" + std::to_string(i) + "/rt_world", 500);
-        pub_ag_pose[i] = n.advertise<nav_msgs::Odometry>("/ag" + std::to_string(i) + "/calib_pose", 500);
-    }
-    std::thread sync_thread{sync_process};
-    ros::spin();
-}
+// for (int i = 0; i < opt_frame_len - not_memory; i++)
+            // {
+            //     for (int j = 1; j <= 3; j++)
+            //     {
+            //         para_yaw[j][i][0] = para_yaw[j][i + not_memory][0];
+            //         for (int k = 0; k <= 2; k++)
+            //             para_pos[j][i][k] = para_pos[j][i + not_memory][k];
+            //         ps[j][i] = ps[j][i + not_memory];
+            //         vs[j][i] = vs[j][i + not_memory];
+            //         omega[j][i] = omega[j][i + not_memory];
+            //         qs[j][i] = qs[j][i + not_memory];
+            //         alpha[i] = alpha[i + not_memory];
+            //         para_agent_time[i] = para_agent_time[i + not_memory];
+            //         for (int k = 0; k <= 3; k++)
+            //         {
+            //             range_mea[j][i][k] = range_mea[j][i + not_memory][k];
+            //         }
+            //     }
+            // }
+            // opt_frame_len -= not_memory;
+*/

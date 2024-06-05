@@ -1,0 +1,17 @@
+<launch>
+    <group ns="ag2">
+        <node name="vins_estimator" pkg="vins" type="vins_node" output="screen" args="$(find vins)/../config/realsense_d435i_2_6320/realsense_stereo_imu_config.yaml"/>
+    </group>
+
+    <node pkg="rosbag" type="record" name="bag_record" output="log" args="
+    /ag2/vins_estimator/imu_propagate
+    /ag2/vins_estimator/imu_propagate_noworld
+    /ag1/vins_estimator/imu_propagate
+    /ag1/vins_estimator/imu_propagate_noworld
+    /ag3/vins_estimator/imu_propagate
+    /ag3/vins_estimator/imu_propagate_noworld
+    /mavros/imu/data
+    /u0/nlink_linktrack_nodeframe2
+    /anchor_pos1 /anchor_pos2 /anchor_pos3 /anchor_pos4 /ag2/rt_world 
+    -o /home/nvidia/output/" />
+</launch>

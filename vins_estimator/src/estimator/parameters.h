@@ -95,6 +95,7 @@ extern int USE_EST_UWB;
 extern int USE_TRUE_NOISE;
 extern int USE_GPU;
 extern int USE_GPU_ACC_FLOW;
+extern int UWB_TAG_ID;
 void readParameters(std::string config_file);
 
 enum SIZE_PARAMETERIZATION

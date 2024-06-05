@@ -70,6 +70,7 @@ double LINK_W,MOVE_W;
 int USE_LOOSE;
 int USE_GPU;
 int USE_GPU_ACC_FLOW;
+int UWB_TAG_ID;
 template <typename T>
 T readParam(ros::NodeHandle &n, std::string name)
 {
@@ -251,15 +252,23 @@ void readParameters(std::string config_file)
     else if(AGENT_NUMBER==2)uwbNum=3,lowNum=0;
     else uwbNum=3,lowNum=0;
 
+    if(USE_UWB&&SIM_UWB==0&&SIM_UE==0){
+        if(fsSettings["uwb_tag_id"].type()!=cv::FileNode::NONE)
+            UWB_TAG_ID=fsSettings["uwb_tag_id"];
+        else{
+            ROS_INFO("please input uwb tag id in config yaml");
+            assert(0);
+        }
+    }
     HINGE<<-0.1,0.00,-0.03;
-    // if(fsSettings["body_T_hinge"].type()!=cv::FileNode::NONE)
-    // {
-    //     cv::Mat cv_T;
-    //     fsSettings["body_T_hinge"] >> cv_T;
-    //     Eigen::Matrix4d T;
-    //     cv::cv2eigen(cv_T, T);
-    //     HINGE=T.block<3,1>(3,0);
-    // }
+    if(fsSettings["body_T_hinge"].type()!=cv::FileNode::NONE)
+    {
+        cv::Mat cv_T;
+        fsSettings["body_T_hinge"] >> cv_T;
+        Eigen::Matrix4d T;
+        cv::cv2eigen(cv_T, T);
+        HINGE=T.block<3,1>(3,0);
+    }
     KIN_LENGTH=0.841;
     sigma_rt_6dof(0)=sigma_rt_6dof(1)=sigma_rt_6dof(2)=0.01;
     sigma_rt_6dof(3)=sigma_rt_6dof(4)=sigma_rt_6dof(5)=sigma_rt_6dof(6)=0.04;

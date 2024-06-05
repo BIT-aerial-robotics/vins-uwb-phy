@@ -21,16 +21,16 @@ OdometryVins OdometryVins::predict(double t)
     OdometryVins tmp;
     tmp.time=t;
     tmp.Vs=Vs;
-    tmp.Ps=Ps+Vs*(t-time);
+    tmp.Ps=Ps;
     tmp.Ws=Ws;
-    tmp.Rs =Rs;
+    tmp.Rs=Rs;
     Eigen::Quaterniond delta;
     delta.x()=tmp.Ws.x()*(t-time)*0.5;
     delta.y()=tmp.Ws.y()*(t-time)*0.5;
     delta.z()=tmp.Ws.z()*(t-time)*0.5;
     delta.w()=0;
     //delta.w()=sqrt(1-delta.x()*delta.x()+delta.y()*delta.y()+delta.z()*delta.z());
-    tmp.Rs=tmp.Rs*delta;
+    tmp.Rs=tmp.Rs;
     tmp.Rs.normalize();
     for(int i=0;i<=9;i++)
     tmp.range[i]=range[i];
@@ -55,7 +55,7 @@ void UWBManager::addOdometryMeasurements(Eigen::Vector3d Ps,Eigen::Vector3d Vs,E
 }
 void UWBManager::clearState()
 {
-    sigma=0.15;
+    sigma=0.1;
     sample=8;
     RANGE_SIZE=15;
     OFFSET_THRESH=0.04;
@@ -94,12 +94,8 @@ bool UWBManager::query(OdometryVins &x,double time){
 bool UWBManager::addUWBMeasurements(int idx,double time,double range){
     UWBMeasurement tmp(idx,range,time);
     if(uwb_range_window[idx].size()==0){
-
-        //printf("size==%d\n",uwb_range_window[idx].size());
-        //std::cout<<uwb_range_window[idx]<<std::endl;
         uwb_range_window[idx].push_back(tmp);
         uwb_range_sol_data[idx].push_back(tmp);
-        //printf("len not enough\n");
         smoothRange(idx);
         return true;
     }
@@ -107,12 +103,8 @@ bool UWBManager::addUWBMeasurements(int idx,double time,double range){
         if(range!=uwb_range_sol_data[idx].back().range){
             OdometryVins x1,x2;
             bool q1=false,q2=false;
-            //q1=query(x1,uwb_range_window[idx].back().time);
-            //q2=query(x2,time);
-            //ROS_INFO("new uwb data");
             double offset = range - accumulate(idx);
             double offset_to_last = range - uwb_range_sol_data[idx].back().range;
-            //printf("offset %lf  offset_to_last %lf len=%d\n",offset,offset_to_last,uwb_range_window[idx].size());
             if(abs(OFFSET_THRESH-0.6)<=0.01){
                 range_updated=true;
                 while(uwb_range_window[idx].size()>0)uwb_range_window[idx].pop_front();
@@ -123,7 +115,6 @@ bool UWBManager::addUWBMeasurements(int idx,double time,double range){
                 bool speed=true;
                 q1=query(x1,uwb_range_window[idx].back().time);
                 q2=query(x2,time);
-                //std::cout<<"query "<<q1<< " and "<<q2<<std::endl;
                 if(q1){
                     double delta_t=time-uwb_range_window[idx].back().time;
                     double delta_p;
@@ -158,7 +149,6 @@ bool UWBManager::addUWBMeasurements(int idx,double time,double range){
             return res;
         }
         else{
-            //printf("%d %lf %lf",idx,time,range);
             return false;
         }
         
@@ -173,13 +163,6 @@ void OdometryVins::updateRange(double _range[])
 }
 void UWBManager::smoothRange(int idx)
 {
-    //printf("smooth range %d %d %d",idx,uwb_range_sol_data[idx].size(),last_smooth_idx[idx]);
-    
-    // int len=150+sample/2+sample/2;
-    // int odd=sample/2;
-    // int measurement_id=odd;
-    // vector<UWBMeasurement> tmp(len);
-
     if(1)
     {
         int ava=0;
