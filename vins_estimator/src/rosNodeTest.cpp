@@ -12,7 +12,7 @@
 #include "estimator/uwb_manager.h"
 #include "nlink_parser/LinktrackNodeframe2.h"
 
-const int FLY=1;
+int USE_FLY=0;
 Estimator estimator;
 queue<sensor_msgs::ImuConstPtr> imu_buf;
 queue<sensor_msgs::PointCloudConstPtr> feature_buf;
@@ -280,7 +280,7 @@ void ground_truth_callback(const nav_msgs::OdometryConstPtr &msg,int idx)
             raw.poses.push_back(raw_pose);
             if(res){
                 double dis=uwb_manager[i].uwb_range_sol_data[0].back().range;
-                estimator.inputRange(i,time,dis);
+                //estimator.inputRange(i,time,dis);
                 //ROS_INFO("%d %d %d %lf %lf",AGENT_NUMBER,idx,i,time,dis);
                 //geometry_msgs::Pose data_pose;
                 //data_pose.position.x=dis;
@@ -333,7 +333,7 @@ void ground_truth_callback_2(const geometry_msgs::PoseStampedConstPtr &msg,int i
             data_pose.position.x=dis;
             data.poses.push_back(data_pose);
             if(res){
-               estimator.inputRange(i,time,dis);
+               //estimator.inputRange(i,time,dis);
                
             }
             else{
@@ -375,11 +375,10 @@ void rt_call_back(const geometry_msgs::PoseStampedConstPtr &msg)
     estimator.inputRt(tmp);
     //m_buf.unlock();
 }
-
 int idx_2_idx[]={3,8,1,2};
 void uwb_callback(const nlink_parser::LinktrackNodeframe2ConstPtr &msg)
 {
-    if(FLY)
+    if(USE_FLY)
     {
         if(UWB_TAG_ID!=(int)(msg->id))return;
     }
@@ -396,7 +395,8 @@ void uwb_callback(const nlink_parser::LinktrackNodeframe2ConstPtr &msg)
         const nlink_parser::LinktrackNode2& node = msg->nodes[i];
         double time=msg->header.stamp.toSec();
         int id=(int)(node.id);
-        if(id<4||id>7)continue;
+        if(id<4)continue;
+        if(id==9)id=7;
         bool res=uwb_manager[id-4].addUWBMeasurements(0,time,node.dis);
         double dis=uwb_manager[id-4].uwb_range_sol_data[0].back().range;
         if(res){
@@ -531,6 +531,14 @@ int main(int argc, char **argv)
     ROS_WARN("waiting for image and imu...");
 
     registerPub(n);
+    if (n.getParam("/real_fly", USE_FLY))
+    {
+        ROS_INFO("rosNodeTest real fly: %d\n", USE_FLY);
+    }
+    else{
+        USE_FLY=0;
+        ROS_INFO("rosNodeTest real fly moren config : %d\n", USE_FLY);
+    }
     ros::Subscriber sub_imu;
     if(USE_IMU)
     {

@@ -1,24 +1,28 @@
 <launch>
+    <param name="real_fly" type="int" value="0"/>
     <arg name="sequence_1" default = "/home/f404/datacol/realsense/2024-01-17-14-01-27.bag" />
     <arg name="sequence_uwb" default = "/home/f404/datacol/realsense/uwb/2024-01-17-14-01-27.bag" />
     <arg name="sequence_est" default="/home/f404/output/uwb/real/est_uwb/lab1/err0.2_2024-04-18-15-41-32.bag" />
     <!-- <node name="cent_estimator" pkg="vins" type="cent_node" output="log"/>
     <node name="vins_estimator_est_uwb" pkg="vins" type="est_uwb" output="screen"/> -->
     <group ns="ag1">
+        <param name="real_fly" type="int" value="0"/>
         <node name="vins_estimator" pkg="vins" type="vins_node" output="screen" args="/home/f404/catkin_tmp/src/VINS-Fusion/config/realsense_d435i_1_1944/realsense_stereo_imu_config.yaml"/>
     </group>
     <group ns="ag2">
+        <param name="real_fly" type="int" value="0"/>
         <node name="vins_estimator" pkg="vins" type="vins_node" output="screen" args="/home/f404/catkin_tmp/src/VINS-Fusion/config/realsense_d435i_2_6320/realsense_stereo_imu_config.yaml"/>
     </group>
     <group ns="ag3">
+        <param name="real_fly" type="int" value="0"/>
         <node name="vins_estimator" pkg="vins" type="vins_node" output="screen" args="/home/f404/catkin_tmp/src/VINS-Fusion/config/realsense_d435i_3_2454/realsense_stereo_imu_config.yaml"/>
     </group>
 
     <node pkg="rosbag" type="play" name="player" output="log" 
-    args="$(arg sequence_1) -s 5 -r 0.2
+    args="$(arg sequence_1) -s 45 -r 0.1
     " />
     <node pkg="rosbag" type="play" name="player2" output="log" 
-    args="$(arg sequence_uwb) -s 6 -r 0.2
+    args="$(arg sequence_uwb) -s 46 -r 0.1
     " />
     <!-- <node pkg="rosbag" type="play" name="player3" output="log" 
     args="$(arg sequence_est) delay 15
@@ -35,6 +39,7 @@
     /vrpn_client_node/ag2_Marker1/pose
     /vrpn_client_node/ag3_Marker1/pose
     /mavros/imu/data
+    /mavros/odometry/out
     /ag0/vins_estimator/imu_propagate
     -o /home/f404/output/uwb/real/est_uwb/lab1/" />
     

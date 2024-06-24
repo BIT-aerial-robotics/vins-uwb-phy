@@ -1,8 +1,8 @@
 /*******************************************************
  * Copyright (C) 2019, Aerial Robotics Group, Hong Kong University of Science and Technology
- * 
+ *
  * This file is part of VINS.
- * 
+ *
  * Licensed under the GNU General Public License v3.0;
  * you may not use this file except in compliance with the License.
  *******************************************************/
@@ -55,18 +55,19 @@ int AGENT_NUMBER;
 int SIM_UE;
 int SIM_UWB;
 int USE_KIN;
-int uwbNum=0,lowNum=0;
+int uwbNum = 0, lowNum = 0;
 int FLIGHT_MODE;
 int USE_EXR;
-int ANCHORNUMBER=4;
-int USE_EST_UWB=0;
-int USE_TRUE_NOISE=0;
+int ANCHORNUMBER = 4;
+int USE_EST_UWB = 0;
+int USE_TRUE_NOISE = 0;
+Eigen::Vector3d UWB_TAG;
 Eigen::Vector3d HINGE;
 double KIN_LENGTH;
-Eigen::Matrix<double,7,1>sigma_rt_6dof;
-Eigen::Matrix<double,7,1>sigma_vins_6dof;
+Eigen::Matrix<double, 7, 1> sigma_rt_6dof;
+Eigen::Matrix<double, 7, 1> sigma_vins_6dof;
 int USE_LONG_WINDOW;
-double LINK_W,MOVE_W;
+double LINK_W, MOVE_W;
 int USE_LOOSE;
 int USE_GPU;
 int USE_GPU_ACC_FLOW;
@@ -89,17 +90,33 @@ T readParam(ros::NodeHandle &n, std::string name)
 
 void readParameters(std::string config_file)
 {
-    
-    FILE *fh = fopen(config_file.c_str(),"r");
-    if(fh == NULL){
+
+    KIN_LENGTH = 0.841;
+    sigma_rt_6dof(0) = sigma_rt_6dof(1) = sigma_rt_6dof(2) = 0.01;
+    sigma_rt_6dof(3) = sigma_rt_6dof(4) = sigma_rt_6dof(5) = sigma_rt_6dof(6) = 0.04;
+    sigma_vins_6dof(0) = sigma_vins_6dof(1) = sigma_vins_6dof(2) = 0.04;
+    sigma_vins_6dof(3) = sigma_vins_6dof(4) = sigma_vins_6dof(5) = sigma_vins_6dof(6) = 0.1;
+    USE_EXR = 0;
+    USE_LONG_WINDOW = 0;
+    LINK_W = 0.04;
+    MOVE_W = 0.015;
+    SIM_UE = 0;
+    SIM_UWB = 0;
+    MULAGENT = 0;
+    DEPEND = 1;
+    USE_EST_UWB = 1;
+
+    FILE *fh = fopen(config_file.c_str(), "r");
+    if (fh == NULL)
+    {
         ROS_WARN("config_file dosen't exist; wrong config_file path");
         ROS_BREAK();
-        return;          
+        return;
     }
     fclose(fh);
 
     cv::FileStorage fsSettings(config_file, cv::FileStorage::READ);
-    if(!fsSettings.isOpened())
+    if (!fsSettings.isOpened())
     {
         std::cerr << "ERROR: Wrong path to settings" << std::endl;
     }
@@ -116,7 +133,7 @@ void readParameters(std::string config_file)
 
     USE_IMU = fsSettings["imu"];
     printf("USE_IMU: %d\n", USE_IMU);
-    if(USE_IMU)
+    if (USE_IMU)
     {
         fsSettings["imu_topic"] >> IMU_TOPIC;
         printf("IMU_TOPIC: %s\n", IMU_TOPIC.c_str());
@@ -146,9 +163,9 @@ void readParameters(std::string config_file)
         TIC.push_back(Eigen::Vector3d::Zero());
         EX_CALIB_RESULT_PATH = OUTPUT_FOLDER + "/extrinsic_parameter.csv";
     }
-    else 
+    else
     {
-        if ( ESTIMATE_EXTRINSIC == 1)
+        if (ESTIMATE_EXTRINSIC == 1)
         {
             ROS_WARN(" Optimize extrinsic param around initial guess!");
             EX_CALIB_RESULT_PATH = OUTPUT_FOLDER + "/extrinsic_parameter.csv";
@@ -162,39 +179,38 @@ void readParameters(std::string config_file)
         cv::cv2eigen(cv_T, T);
         RIC.push_back(T.block<3, 3>(0, 0));
         TIC.push_back(T.block<3, 1>(0, 3));
-    } 
-    
+    }
+
     NUM_OF_CAM = fsSettings["num_of_cam"];
     printf("camera number %d\n", NUM_OF_CAM);
 
-    if(NUM_OF_CAM != 1 && NUM_OF_CAM != 2)
+    if (NUM_OF_CAM != 1 && NUM_OF_CAM != 2)
     {
         printf("num_of_cam should be 1 or 2\n");
         assert(0);
     }
 
-
     int pn = config_file.find_last_of('/');
     std::string configPath = config_file.substr(0, pn);
-    
+
     std::string cam0Calib;
     fsSettings["cam0_calib"] >> cam0Calib;
     std::string cam0Path = configPath + "/" + cam0Calib;
     CAM_NAMES.push_back(cam0Path);
 
-    if(fsSettings["use_gpu"].type()!=cv::FileNode::NONE)
+    if (fsSettings["use_gpu"].type() != cv::FileNode::NONE)
         USE_GPU = fsSettings["use_gpu"];
-    if(fsSettings["use_gpu_acc_flow"].type()!=cv::FileNode::NONE)
+    if (fsSettings["use_gpu_acc_flow"].type() != cv::FileNode::NONE)
         USE_GPU_ACC_FLOW = fsSettings["use_gpu_acc_flow"];
-    if(NUM_OF_CAM == 2)
+    if (NUM_OF_CAM == 2)
     {
         STEREO = 1;
         std::string cam1Calib;
         fsSettings["cam1_calib"] >> cam1Calib;
-        std::string cam1Path = configPath + "/" + cam1Calib; 
-        //printf("%s cam1 path\n", cam1Path.c_str() );
+        std::string cam1Path = configPath + "/" + cam1Calib;
+        // printf("%s cam1 path\n", cam1Path.c_str() );
         CAM_NAMES.push_back(cam1Path);
-        
+
         cv::Mat cv_T;
         fsSettings["body_T_cam1"] >> cv_T;
         Eigen::Matrix4d T;
@@ -218,72 +234,73 @@ void readParameters(std::string config_file)
     COL = fsSettings["image_width"];
     ROS_INFO("ROW: %d COL: %d ", ROW, COL);
 
-    if(!USE_IMU)
+    if (!USE_IMU)
     {
         ESTIMATE_EXTRINSIC = 0;
         ESTIMATE_TD = 0;
         printf("no imu, fix extrinsic param; no time offset calibration\n");
     }
 
+    USE_LOOSE = 0;
+    USE_KIN = 0;
+    if (fsSettings["use_kin"].type() != cv::FileNode::NONE)
+        USE_KIN = fsSettings["use_kin"];
+    USELINE = 0;
+    USE_UWB = 0;
+    if (fsSettings["use_uwb"].type() != cv::FileNode::NONE)
+        USE_UWB = fsSettings["use_uwb"];
 
-    USE_LOOSE=0;
-    USE_KIN=0;
-    if(fsSettings["use_kin"].type()!=cv::FileNode::NONE)
-        USE_KIN=fsSettings["use_kin"];
-    USELINE=0;
-    USE_UWB=0;
-    if(fsSettings["use_uwb"].type()!=cv::FileNode::NONE)
-        USE_UWB=fsSettings["use_uwb"];
-    
-    
-    IMU_SAEM_FRE=1;
-    imu_delta_fre=3;
-    if(fsSettings["imu_fre"].type()!=cv::FileNode::NONE)
-    IMU_SAEM_FRE=fsSettings["imu_fre"];
-    imu_delta_fre=3;
-    if(fsSettings["imu_delta"].type()!=cv::FileNode::NONE)
-    imu_delta_fre=fsSettings["imu_delta"];
-    
-    AGENT_NUMBER=fsSettings["agent_number"];
-    
-    if(AGENT_NUMBER==1){
-        uwbNum=3,lowNum=0;
+    IMU_SAEM_FRE = 1;
+    imu_delta_fre = 3;
+    if (fsSettings["imu_fre"].type() != cv::FileNode::NONE)
+        IMU_SAEM_FRE = fsSettings["imu_fre"];
+    imu_delta_fre = 3;
+    if (fsSettings["imu_delta"].type() != cv::FileNode::NONE)
+        imu_delta_fre = fsSettings["imu_delta"];
+
+    AGENT_NUMBER = fsSettings["agent_number"];
+
+    if (AGENT_NUMBER == 1)
+    {
+        uwbNum = 3, lowNum = 0;
     }
-    else if(AGENT_NUMBER==2)uwbNum=3,lowNum=0;
-    else uwbNum=3,lowNum=0;
+    else if (AGENT_NUMBER == 2)
+        uwbNum = 3, lowNum = 0;
+    else
+        uwbNum = 3, lowNum = 0;
 
-    if(USE_UWB&&SIM_UWB==0&&SIM_UE==0){
-        if(fsSettings["uwb_tag_id"].type()!=cv::FileNode::NONE)
-            UWB_TAG_ID=fsSettings["uwb_tag_id"];
-        else{
+    if (USE_UWB && SIM_UWB == 0 && SIM_UE == 0)
+    {
+        if (fsSettings["uwb_tag_id"].type() != cv::FileNode::NONE)
+            UWB_TAG_ID = fsSettings["uwb_tag_id"];
+        else
+        {
             ROS_INFO("please input uwb tag id in config yaml");
             assert(0);
         }
+        UWB_TAG << -0.1, 0.00, 0.03;
+        if (fsSettings["body_T_tag"].type() != cv::FileNode::NONE)
+        {
+            cv::Mat cv_T;
+            fsSettings["body_T_tag"] >> cv_T;
+            Eigen::Matrix4d T;
+            cv::cv2eigen(cv_T, T);
+            UWB_TAG(0) = T(3, 0);
+            UWB_TAG(1) = T(3, 1);
+            UWB_TAG(2) = T(3, 2);
+        }
     }
-    HINGE<<-0.1,0.00,-0.03;
-    if(fsSettings["body_T_hinge"].type()!=cv::FileNode::NONE)
+    HINGE << -0.1, 0.00, -0.03;
+    if (fsSettings["body_T_hinge"].type() != cv::FileNode::NONE)
     {
         cv::Mat cv_T;
         fsSettings["body_T_hinge"] >> cv_T;
         Eigen::Matrix4d T;
         cv::cv2eigen(cv_T, T);
-        HINGE(0)=T(3,0);
-        HINGE(1)=T(3,1);
-        HINGE(2)=T(3,2);
+        HINGE(0) = T(3, 0);
+        HINGE(1) = T(3, 1);
+        HINGE(2) = T(3, 2);
     }
-    KIN_LENGTH=0.841;
-    sigma_rt_6dof(0)=sigma_rt_6dof(1)=sigma_rt_6dof(2)=0.01;
-    sigma_rt_6dof(3)=sigma_rt_6dof(4)=sigma_rt_6dof(5)=sigma_rt_6dof(6)=0.04;
-    sigma_vins_6dof(0)=sigma_vins_6dof(1)=sigma_vins_6dof(2)=0.04;
-    sigma_vins_6dof(3)=sigma_vins_6dof(4)=sigma_vins_6dof(5)=sigma_vins_6dof(6)=0.1;
-    USE_EXR=0;
-    USE_LONG_WINDOW=0;
-    LINK_W=0.04;
-    MOVE_W=0.015;
-    SIM_UE=0;
-    SIM_UWB=0;
-    MULAGENT=0;
-    DEPEND=1;
-    USE_EST_UWB=1;
+    
     fsSettings.release();
 }

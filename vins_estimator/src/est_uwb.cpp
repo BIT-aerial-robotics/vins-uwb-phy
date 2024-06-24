@@ -14,7 +14,7 @@
 const int USE_TRUE = 1;
 const int USE_SIM = 0;
 const int SOL_LENGTH = 100;
-const int MAX_SOL_LENGTH = 15000;
+const int MAX_SOL_LENGTH = 25000;
 const int IMU_PROPAGATE = 1;
 const int USE_UWB_INIT = 1;
 std::mutex m_buf;
@@ -40,6 +40,7 @@ double uwb_bias_gama_low=0.35;
 double uwb_bias_gama_upp=0.44;
 double uwb_frame_delta=0.25;
 double uwb_outlier=0.2;
+int use_prioi_position=0;
 Eigen::Matrix<double, 4, 1> sigma_vins_6dof_loose;
 Eigen::Matrix<double, 4, 1> sigma_bet_6dof_loose;
 
@@ -166,6 +167,8 @@ void readParametersEstUwb(std::string config_file)
         uwb_bias_gama_upp=fsSettings["uwb_bias_gama_upp"];
     if(fsSettings["uwb_out"].type()!=cv::FileNode::NONE)
         uwb_bias_gama_upp=fsSettings["uwb_bias_gama_upp"];
+    if(fsSettings["use_prioi_position"].type()!=cv::FileNode::NONE)
+        use_prioi_position=fsSettings["use_prioi_position"];
 }
 void pub(int tot, int cnt)
 {
@@ -372,30 +375,77 @@ void sync_process()
     string filename = "/home/f404/est.csv";
     double last_error=10000;
     int init_num=0;
+    bool begin_flag=false;
+    static int frame_check_num=0;
     while (1)
     {
         ofstream file(filename, ios::app);
-        // if (faile_num > 1000)
-        //     break;
         TicToc t_sub;
         ros::Rate loop_rate(100);
         loop_rate.sleep();
         m_buf.lock();
-        // while (pose_agent_buf[1].size() > 0 && opt_frame_len > 5)
-        // {
-        //     if (pose_agent_buf[1].begin()->first - para_agent_time[opt_frame_len - 1] > 4)
-        //     {
-        //         break;
-        //     }
-        //     if ((pose_agent_buf[1].begin()->second.Ps - ps[1][opt_frame_len - 1]).norm() < 0.005)
-        //     {
-        //         pose_agent_buf[1].erase(pose_agent_buf[1].begin());
-        //     }
-        //     else
-        //     {
-        //         break;
-        //     }
-        // }
+        frame_check_num+=1;
+        frame_check_num%=500;
+        if(frame_check_num==0){
+            for(int i=0;i<=3;i++){
+                std::cout<<i<<"  size   "<<pose_agent_buf[i].size()<<std::endl;
+            }
+        }
+        if(begin_flag==false){
+            double ini_frame_time=19999999999;
+            bool ini_frame_number=true;
+            for(int i=0;i<=3;i++){
+                if(pose_agent_buf[i].size()>0){
+                    ini_frame_time=min(ini_frame_time,pose_agent_buf[i].begin()->first);
+                }
+                else{
+                    ini_frame_number=false;
+                }
+            }
+            if(ini_frame_number==false)
+            {
+                faile_num++;
+                m_buf.unlock();
+                continue;
+            }
+            else{
+                begin_flag=true;
+                for(int i=0;i<=3;i++){
+                    while(pose_agent_buf[i].size()>0&&pose_agent_buf[i].begin()->first<ini_frame_time-0.05){
+                        pose_agent_buf[i].erase(pose_agent_buf[i].begin());
+                    }
+                }
+            }
+        }
+
+        if(begin_flag==false){
+            double ini_frame_time=19999999999;
+            bool ini_frame_number=true;
+            for(int i=0;i<=3;i++){
+                if(pose_agent_buf[i].size()>0){
+                    ini_frame_time=min(ini_frame_time,pose_agent_buf[i].begin()->first);
+                }
+                else{
+                    ini_frame_number=false;
+                }
+            }
+            if(ini_frame_number==false)
+            {
+                faile_num++;
+                m_buf.unlock();
+                continue;
+            }
+            else{
+                begin_flag=true;
+                for(int i=0;i<=3;i++){
+                    for(int i=0;i<=3;i++){
+                        while(pose_agent_buf[i].size()>0&&pose_agent_buf[i].begin()->first<ini_frame_time-0.03){
+                            pose_agent_buf[i].erase(pose_agent_buf[i].begin());
+                        }
+                    }
+                }
+            }
+        }
         while (pose_agent_buf[1].size() > 0 && pose_agent_buf[2].size() > 0 && pose_agent_buf[2].begin()->first - pose_agent_buf[1].begin()->first > 1)
         {
             pose_agent_buf[1].erase(pose_agent_buf[1].begin());
@@ -404,6 +454,9 @@ void sync_process()
         {
             pose_agent_buf[1].erase(pose_agent_buf[1].begin());
         }
+
+        
+        
 
         int last_opt_frame_len = opt_frame_len;
         while (pose_agent_buf[1].size() > 0)
@@ -625,7 +678,7 @@ void sync_process()
             options.max_num_iterations = 8;
             ceres::Solver::Summary summary;
             ceres::Solve(options, &problem, &summary);
-            std::cout << summary.BriefReport() << std::endl;
+            if(sys_cnt%20==1)std::cout << summary.BriefReport() << std::endl;
             init_num+=1;
             //std::cout<<len_res_num<<"  "<<att_res_num<<"  "<<para_agent_time[upperIdx-1]-para_agent_time[lowerIdx]<<std::endl;
         }
@@ -633,9 +686,9 @@ void sync_process()
         
 
 
-
-
-        if (opt_frame_len>=300)
+        int uwb_res_num=0;
+        int min_num_frame=800;
+        if (opt_frame_len>=min_num_frame)
         {
             ceres::Problem problem2;
             ceres::LossFunction *loss_function;
@@ -664,21 +717,24 @@ void sync_process()
                     problem2.SetParameterBlockConstant(para_yaw[i][j]);
                     for (int k = 0; k <= 3; k++)
                     {
+                        
                         // if(i==2&&j==opt_frame_len-1)
                         // printf("time=%lf (position %lf %lf %lf %lf %lf %lf)  (range=%lf %lf)\n",para_agent_time[j],ps[i][j].x(),ps[i][j].y(),ps[i][j].z(),
                         // para_anchor[k][0],para_anchor[k][1],para_anchor[k][2],range_mea[i][j][k],(ps[i][j]-anchor_create_pos[k]).norm());
+                        if(range_mea[i][j][k]<0.5)continue;
                         UWBFactor_connect_4dof_plus_mul *self_factor = new UWBFactor_connect_4dof_plus_mul(ps[i][j], qs[i][j],
                                                                                                            para_TAG, range_mea[i][j][k], 0.04);
                         
                         double residual[2];
                         (*self_factor)(para_pos[i][j], para_yaw[i][j], para_anchor[k], para_bias[i][k],residual);
-                        if(residual[0]>uwb_outlier/0.04&&opt_frame_len>350)continue;
+                        if(residual[0]>uwb_outlier/0.04&&opt_frame_len>min_num_frame+50)continue;
                         problem2.AddResidualBlock(
                             new ceres::AutoDiffCostFunction<UWBFactor_connect_4dof_plus_mul, 1, 3, 1, 3, 2>(self_factor),
                             loss_function,
                             para_pos[i][j], para_yaw[i][j], para_anchor[k], para_bias[i][k]);
+                        uwb_res_num+=1;
                     }
-                    for (int dt = 20; dt <= 80; dt += 25)
+                    for (int dt = 10; dt <= 25; dt += 5)
                     {
 
                         if (j - dt < 0)
@@ -686,6 +742,7 @@ void sync_process()
                         for (int k = 0; k <= 3; k++)
                         {
                             int d1 = j, d2 = j - dt;
+                            if(range_mea[i][d1][k]<0.5 || range_mea[i][d2][k]<0.5)continue;
                             UWBFactor_connect_2time_plus_mul *self_factor = new UWBFactor_connect_2time_plus_mul(ps[i][d1], qs[i][d1],
                                                                                                                  ps[i][d2], qs[i][d2],
                                                                                                                  para_TAG, range_mea[i][d1][k], range_mea[i][d2][k], 0.04);
@@ -694,13 +751,14 @@ void sync_process()
                             (*self_factor)(para_pos[i][d1], para_yaw[i][d1], 
                                 para_pos[i][d2], para_yaw[i][d2],
                                 para_anchor[k], para_bias[i][k],residual);
-                            if(residual[0]>uwb_outlier/0.04&&opt_frame_len>350)continue;
+                            if(residual[0]>uwb_outlier/0.04&&opt_frame_len>min_num_frame+50)continue;
                             problem2.AddResidualBlock(
                                 new ceres::AutoDiffCostFunction<UWBFactor_connect_2time_plus_mul, 1, 3, 1,3,1, 3, 2>(self_factor),
                                 loss_function,
                                 para_pos[i][d1], para_yaw[i][d1], 
                                 para_pos[i][d2], para_yaw[i][d2],
                                 para_anchor[k], para_bias[i][k]);
+                            uwb_res_num+=1;
                         }
                     }
                 }
@@ -728,12 +786,12 @@ void sync_process()
                 for (int j = 0; j < i; j++)
                 {
                     double dis = distance_anchor(i,j);
-                    if(dis<=1)continue;
+                    if(dis<=1||use_prioi_position==0)continue;
                     // printf("dis=== %lf ",dis);
                     UWBFactor_anchor_and_anchor *self_factor = new UWBFactor_anchor_and_anchor(dis, 0.02);
                     problem2.AddResidualBlock(
                         new ceres::AutoDiffCostFunction<UWBFactor_anchor_and_anchor, 1, 3, 3>(self_factor),
-                        NULL, para_anchor[i], para_anchor[j]);
+                        loss_function, para_anchor[i], para_anchor[j]);
                 }
             }
             ceres::Solver::Options options2;
@@ -743,7 +801,7 @@ void sync_process()
             options2.max_num_iterations = 40;
             ceres::Solver::Summary summary2;
             ceres::Solve(options2, &problem2, &summary2);
-            std::cout << summary2.BriefReport() << std::endl;
+            if(sys_cnt%20==1)std::cout << summary2.BriefReport() << std::endl;
         }
         
         // printf("wdafsufsk  dasflfa");
@@ -757,7 +815,7 @@ void sync_process()
         }
         m_buf.unlock();
 
-        printf("delta T =%lf ", para_agent_time[opt_frame_len - 1] - para_agent_time[0]);
+        //printf("delta T =%lf ", para_agent_time[opt_frame_len - 1] - para_agent_time[0]);
         // MatrixXd pointsA(4, 3), pointsB(4, 3);
         // for (int i = 0; i <= 3; i++)
         // {
@@ -772,7 +830,7 @@ void sync_process()
         double error=0;
         double delta_time=para_agent_time[opt_frame_len - 1] - para_agent_time[0];
 
-        printf("%d ", opt_frame_len);
+        //printf("%d ", opt_frame_len);
         
         //double anchor_error=error;
         //file.close();
@@ -787,6 +845,7 @@ void sync_process()
                     continue;
                 for (int k = 0; k <= 3; k++)
                 {
+                    if(range_mea[i][j][k]<0.5)continue;
                     UWBFactor_connect_4dof_plus_mul *self_factor = new UWBFactor_connect_4dof_plus_mul(ps[i][j], qs[i][j],
                                                                                                        para_TAG, range_mea[i][j][k], 1);
                     double res[2];
@@ -803,26 +862,27 @@ void sync_process()
                 err_agent += err_agent_tag[k];
             }
             err_agent /= 4;
-            printf("alltag %d err_mean===%lf   ",i,err_agent);
+            //printf("alltag %d err_mean===%lf   ",i,err_agent);
             error += err_agent;
         }
         error/=3;
-        printf("allagent err_all %lf\n", error);
-        for (int j = 1; j <= 3; j++)
-        {
-            ROS_INFO("(%lf %lf %lf %lf)", para_pos[j][opt_frame_len - 1][0], para_pos[j][opt_frame_len - 1][1],
-                     para_pos[j][opt_frame_len - 1][2], para_yaw[j][opt_frame_len - 1][0]);
-        }
-        auto check=[last_error,error](){
-            if(last_error-error<=0.001)return true;
-            if((last_error-error)/last_error<=opt_des)return true;
+        //printf("allagent err_all %lf\n", error);
+        // for (int j = 1; j <= 3; j++)
+        // {
+        //     ROS_INFO("(%lf %lf %lf %lf)", para_pos[j][opt_frame_len - 1][0], para_pos[j][opt_frame_len - 1][1],
+        //              para_pos[j][opt_frame_len - 1][2], para_yaw[j][opt_frame_len - 1][0]);
+        // }
+        auto check=[last_error,error,delta_time,uwb_res_num](){
+            if(uwb_res_num==0)return false;
+            if(last_error-error<=0.001&&delta_time>10)return true;
+            if((last_error-error)/last_error<=opt_des&&delta_time>10)return true;
             if(error<=opt_eps)return true;
             return false;
         };
         if (check()&&delta_time>opt_time_lower)
         {
             ROS_INFO("begin cout matrix and anchor");
-            ros::Rate loop_rate_pub_data(100);
+            ros::Rate loop_rate_pub_data(10);
             int pub_time=10;
             while(pub_time--){
                 loop_rate_pub_data.sleep();
@@ -837,16 +897,21 @@ void sync_process()
                     {
                         dat.twist.covariance[(j - 1) * 2 + 0] = para_bias[j][i][0],
                                                         dat.twist.covariance[(j - 1) * 2 + 1] = para_bias[j][i][1];
-                        cout<<i<<" "<<j<<" "<<para_bias[j][i][0]<<"  "<<para_bias[j][i][1]<<endl;
+                        cout<<i<<" "<<j<<" "<<para_bias[j][i][0]<<"  "<<para_bias[j][i][1]<<" ("<<para_anchor[i][0]<<
+                        "  "<<para_anchor[i][1]<<" "<<para_anchor[i][2]<<")  "<<endl;
                     }
                     pub_anchor_pos[i].publish(dat);
                 }
                 for(int i=1;i<=3;i++){
                     geometry_msgs::PoseStamped rt_world;
+                    
                     rt_world.header.stamp=ros::Time(para_agent_time[opt_frame_len-1]);
                     Eigen::Vector3d pos(para_pos[i][opt_frame_len-1]);
+                    
                     Eigen::Quaterniond q{Utility::fromYawToMat(para_yaw[i][opt_frame_len-1][0])};
+                    cout<<pos<<std::endl;
                     tf::pointEigenToMsg(pos,rt_world.pose.position);
+                    std::cout<<rt_world.pose.position.x<<"  "<<rt_world.pose.position.y<<"  "<<rt_world.pose.position.z<<std::endl;
                     tf::quaternionEigenToMsg(q,rt_world.pose.orientation);
                     pub_ag_rt[i].publish(rt_world);
                 }
@@ -910,13 +975,13 @@ int main(int argc, char **argv)
     }
     for (int i = 0; i < ANCHORNUMBER; i++)
     {
-        pub_anchor_pos[i] = n.advertise<nav_msgs::Odometry>("/anchor_pos" + std::to_string(i), 500);
+        pub_anchor_pos[i] = n.advertise<nav_msgs::Odometry>("/anchor_pos" + std::to_string(i), 10);
     }
 
     for (int i = 1; i <= 3; i++)
     {
-        pub_ag_rt[i] = n.advertise<geometry_msgs::PoseStamped>("/ag" + std::to_string(i) + "/rt_world", 500);
-        pub_ag_pose[i] = n.advertise<nav_msgs::Odometry>("/ag" + std::to_string(i) + "/calib_pose", 500);
+        pub_ag_rt[i] = n.advertise<geometry_msgs::PoseStamped>("/ag" + std::to_string(i) + "/rt_world", 10);
+        pub_ag_pose[i] = n.advertise<nav_msgs::Odometry>("/ag" + std::to_string(i) + "/calib_pose", 10);
     }
     std::thread sync_thread{sync_process};
     ros::spin();

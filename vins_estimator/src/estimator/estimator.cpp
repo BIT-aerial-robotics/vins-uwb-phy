@@ -162,9 +162,9 @@ void Estimator::setParameter()
         para_hinge[1] = HINGE(1);
         para_hinge[2] = HINGE(2);
 
-        para_tag[0] = HINGE(0);
-        para_tag[1] = HINGE(1);
-        para_tag[2] = 0.03;
+        para_tag[0] = UWB_TAG(0);
+        para_tag[1] = UWB_TAG(1);
+        para_tag[2] = UWB_TAG(2);
         para_length[0] = 0.841;
     }
     para_self_len[0] = 0.0;
@@ -1174,6 +1174,7 @@ void Estimator::optimization()
     int feature_index = -1;
     for (auto &it_per_id : f_manager.feature)
     {
+        if(AGENT_NUMBER>=1&&to_world_rt_flag)continue;
         it_per_id.used_num = it_per_id.feature_per_frame.size();
         if (it_per_id.used_num < 4)
             continue;
@@ -1432,7 +1433,7 @@ void Estimator::optimization()
                     }
                 }
             }
-            cout << "uwb_length:" << uwb_length << "  " << uwbNum << "  " << resNum << endl;
+            //cout << "uwb_length:" << uwb_length << "  " << uwbNum << "  " << resNum << endl;
         }
         // double base = 0.00002;
         // kinFactor_old *old_fir = new kinFactor_old(para_Pose[0], base * (USE_UWB + USE_KIN * 2), base * 0.5 * (USE_UWB + USE_KIN * 2));
@@ -1557,7 +1558,7 @@ void Estimator::optimization()
                                     para_kin_local_world_Rt[i][j], para_kin_local_world_Rt[i][j - 1]);
                             }
                         }
-                        printf("before %.4lf %.4lf %.4lf %.4lf \n", para_kin_local_world_Rt[i][kin_length / 2][0], para_kin_local_world_Rt[i][kin_length / 2][1], para_kin_local_world_Rt[i][kin_length / 2][2], para_kin_local_world_Rt[i][kin_length / 2][3]);
+                        //printf("before %.4lf %.4lf %.4lf %.4lf \n", para_kin_local_world_Rt[i][kin_length / 2][0], para_kin_local_world_Rt[i][kin_length / 2][1], para_kin_local_world_Rt[i][kin_length / 2][2], para_kin_local_world_Rt[i][kin_length / 2][3]);
                     }
                 }
                 for (int i = 0; i <= WINDOW_SIZE; i++)
@@ -1630,7 +1631,7 @@ void Estimator::optimization()
                                 unit(1)=sin(para_imu_yaw_val[nxt][0]/180*M_PI);
                                 kinFactor_connect_yaw_4dof_tight_2 * yaw_factor=new kinFactor_connect_yaw_4dof_tight_2(mat_2_world.Ps,
                                 mat_2_world.Rs.toRotationMatrix(), kin_mea_ps[x][nxt], kin_mea_qs[x][nxt].toRotationMatrix(),
-                                kin_mea_ps[y][nxt], kin_mea_qs[y][nxt].toRotationMatrix(), unit, 0.04);
+                                kin_mea_ps[y][nxt], kin_mea_qs[y][nxt].toRotationMatrix(), unit, 0.08);
                                 //double res[2];
                                 //(*yaw_factor)(para_Pose[i],para_kin_local_world_Rt[x][nxt],para_kin_local_world_Rt[y][nxt],para_hinge,res);
                                 //printf("id %d  time %lf yaw_val %lf error=%lf %lf\n",AGENT_NUMBER,time,para_imu_yaw_val[nxt][0],res[0],res[1]);
@@ -1694,7 +1695,7 @@ void Estimator::optimization()
                     }
                 }
             }
-            cout << "kin_length:" << kin_length << "  " << kin_2_index.size() << "  " << resNum << endl;
+            //cout << "kin_length:" << kin_length << "  " << kin_2_index.size() << "  " << resNum << endl;
         }
     }
     // ROS_DEBUG("visual measurement count: %d", f_m_cnt);
@@ -2350,10 +2351,12 @@ void Estimator::inputRange(int id, double t, double dis)
 }
 bool Estimator::getRange(int id, double t, double &dis)
 {
+    dis=0;
     // printf("query size--%d",range_map[id].size());
     if (range_map[id].size() == 0)
         return false;
     // printf("query time %lf %lf %lf",range_map[id].begin()->first,t,range_map[id].rbegin()->first);
+    
     auto it = range_map[id].begin();
     it = range_map[id].lower_bound(t);
     if (it == range_map[id].end())

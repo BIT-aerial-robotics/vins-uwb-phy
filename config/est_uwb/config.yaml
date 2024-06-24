@@ -10,10 +10,10 @@ distance_anchor: !!opencv-matrix
    rows: 4
    cols: 4
    dt: d
-   data: [0,0,0,0,
-      0,0,0,0,
-      0,0,0,0,
-      0,0,0,0]
+   data: [0,4.95,4.70,5.50,
+          5.2,0,5.9,3.9,
+          4.75,5.88,0,5.00,
+          5.66,3.74,4.90,0]
 opt_eps: 0.08
 opt_des: 0.02
 opt_time_upper: 60
@@ -24,3 +24,4 @@ uwb_bias_gama_low: 0.35
 uwb_bias_gama_upp: 0.44
 uwb_frame_delta: 0.25
 uwb_outlier: 0.2
+use_prioi_position: 1

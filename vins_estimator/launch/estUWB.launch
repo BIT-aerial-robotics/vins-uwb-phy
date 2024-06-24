@@ -1,9 +1,10 @@
 <launch>    
     
+    <param name="real_fly" type="int" value="0"/>
     <node name="vins_estimator" pkg="vins" type="est_uwb" output="screen"/>
-    <arg name="sequence_1" default = "/home/f404/output/uwb/real/est_uwb/lab1/_2024-05-09-15-37-44.bag" />
-    <node pkg="rosbag" type="play" name="player" output="log" 
-    args="$(arg sequence_1) -s 2" />
+    <!-- <arg name="sequence_1" default = "/home/f404/output/uwb/real/est_uwb/lab1/_2024-05-09-15-37-44.bag" /> -->
+    <!-- <node pkg="rosbag" type="play" name="player" output="log" 
+    args="$(arg sequence_1) -s 2" /> -->
 
     <node pkg="rosbag" type="record" name="bag_record2" output="log" args="
     /anchor_pos0

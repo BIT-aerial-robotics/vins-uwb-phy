@@ -1,13 +1,12 @@
 <launch>    
     
-    <node name="vins_estimator" pkg="vins" type="dataSol" output="screen"/>
+    <node name="vins_estimator" pkg="vins" type="uwb_node" output="screen"/>
     
-    <arg name="sequence_1" default = "/home/f404/datacol/realsense/uwb/2024-01-17-14-49-19.bag" />
-    <arg name="sequence_2" default = "/home/f404/datacol/realsense/2024-01-17-14-49-23.bag" />
-    <node pkg="rosbag" type="play" name="player" output="log" 
-    args="$(arg sequence_1) --delay 10.0 -s 4" />
-    <node pkg="rosbag" type="play" name="player2" output="log" 
-    args="$(arg sequence_2) -r 2" />
+    <!-- <arg name="sequence_1" default = "/home/f404/ag1_test/_2024-06-20-15-02-14.bag" /> -->
+    
+    <!-- <node pkg="rosbag" type="play" name="player" output="log" args="$(arg sequence_1) -s 10.0 -r 4" /> -->
+    <node pkg="rosbag" type="record" name="bag_record2" output="log" args="
+    /u0/nlink_linktrack_nodeframe2  /nlink_sol -o /home/f404/ag1_test/soluwb" />
 </launch>
 
 <!-- /imuOne_1:=/vins_1/mavros/imu/data /cam1:=/vins_1/cam1 

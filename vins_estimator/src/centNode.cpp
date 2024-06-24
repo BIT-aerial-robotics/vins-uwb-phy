@@ -14,7 +14,7 @@
 
 
 const int USE_SIM = 0;
-const int USE_FLY=1;
+int USE_FLY = 0;
 map<double, OdometryVins> data[5];
 ros::Publisher pub_cent_odometry;
 std::mutex m_buf;
@@ -67,15 +67,15 @@ void sync_process()
     {
         double time = 0;
         m_buf.lock();
-        //cout<<data[1].size()<<" "<<data[2].size()<<" "<<data[3].size()<<" "<<failnum<<endl;
+        //cout<<data[0].size()<<" "<<data[1].size()<<" "<<data[2].size()<<" "<<data[3].size()<<" "<<failnum<<endl;
         if (!data[1].empty())
         {
             bool f2=false,f3=false,f0=false;
             OdometryVins a_now[4];
             a_now[1]=data[1].begin()->second;
-            f2=OdometryVins::queryOdometryMap(data[2],a_now[1].time,a_now[2],0.02);
-            f3=OdometryVins::queryOdometryMap(data[3],a_now[1].time,a_now[3],0.02);
-            f0=OdometryVins::queryOdometryMap(data[0],a_now[1].time,a_now[0],0.01);
+            f2=OdometryVins::queryOdometryMap(data[2],a_now[1].time,a_now[2],0.025);
+            f3=OdometryVins::queryOdometryMap(data[3],a_now[1].time,a_now[3],0.025);
+            f0=OdometryVins::queryOdometryMap(data[0],a_now[1].time,a_now[0],0.025);
             // if(abs(noise_normal_distribution(generator))>0.16)
             // {
             //     for(int i=1;i<=3;i++)
@@ -99,6 +99,7 @@ void sync_process()
                 ps /= 3;
                 vs /= 3;
                 Eigen::Matrix3d rot=a_now[0].Rs.toRotationMatrix();
+                Eigen::Vector3d vs_cp=vs;
                 vs=rot.transpose()*vs;
                 // Eigen::Vector3d head_dir;
                 // head_dir=a_now[1].Ps-ps;
@@ -118,11 +119,12 @@ void sync_process()
                 tf::pointEigenToMsg(ps, odometry.pose.pose.position);
                 tf::quaternionEigenToMsg(cent.Rs, odometry.pose.pose.orientation);
                 tf::vectorEigenToMsg(cent.Vs, odometry.twist.twist.linear);
+                tf::vectorEigenToMsg(vs_cp,odometry.twist.twist.angular);
                 pub_cent_odometry.publish(odometry);
                 failnum=0;
                 data[1].erase(data[1].begin());
                 cent_data_number+=1;
-                if(cent_data_number%20==0){
+                if(cent_data_number%200==0){
                     Eigen::Vector3d ang=Utility::R2ypr(rot);
                     Eigen::Vector3d p1 = a_now[1].Ps - (a_now[2].Ps*0.5+a_now[3].Ps*0.5), p2 = a_now[2].Ps - a_now[3].Ps;
                     p1.normalize();
@@ -143,7 +145,7 @@ void sync_process()
                 failnum++;
             }
         }
-        if(failnum>=30){
+        if(failnum>=10){
             failnum=0;
             data[1].erase(data[1].begin());
         }
@@ -152,7 +154,12 @@ void sync_process()
         while(data[3].size()>0&&data[3].begin()->second.time<data[1].begin()->second.time-0.2)
         data[3].erase(data[3].begin());
         m_buf.unlock();
-        std::chrono::milliseconds dura(2);
+        int base_time=0;
+        if(USE_FLY==1)
+            base_time=5;
+        else
+            base_time=50;
+        std::chrono::milliseconds dura(base_time);
         std::this_thread::sleep_for(dura);
     }
 }
@@ -162,6 +169,14 @@ int main(int argc, char **argv)
     ros::NodeHandle n;
     ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Info);
     ros::Subscriber sub_self_odometry[4];
+    if (n.getParam("/real_fly", USE_FLY))
+    {
+        ROS_INFO("centNode real fly: %d\n", USE_FLY);
+    }
+    else{
+        USE_FLY=0;
+        ROS_INFO("centNode real fly moren config : %d\n", USE_FLY);
+    }
     if(USE_FLY==0)
     pub_cent_odometry = n.advertise<nav_msgs::Odometry>("/ag0/vins_estimator/imu_propagate", 1000);
     else

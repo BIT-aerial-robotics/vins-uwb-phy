@@ -82,6 +82,7 @@ extern int USE_KIN;
 extern int uwbNum,lowNum;
 extern int FLIGHT_MODE;
 extern Eigen::Vector3d HINGE;
+extern Eigen::Vector3d UWB_TAG;
 extern double KIN_LENGTH;
 extern int SIM_UWB;
 extern Eigen::Matrix<double,7,1>sigma_rt_6dof;

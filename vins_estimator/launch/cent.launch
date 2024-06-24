@@ -1,11 +1,11 @@
 <launch>
 
     
-    
-    <arg name="sequence_1" default = "/home/f404/output/uwb/real/est_uwb/lab1/_2024-05-29-18-30-13.bag" />
+    <param name="real_fly" type="int" value="0"/>
+    <arg name="sequence_1" default = "/home/f404/output/uwb/real/est_uwb/lab1/_2024-06-17-10-45-27.bag" />
     <node name="cent_node" pkg="vins" type="cent_node" output="screen"/>
     <node pkg="rosbag" type="play" name="player" output="log" 
-    args="$(arg sequence_1) -r 2.5" />
+    args="$(arg sequence_1) -r 5" />
     <!-- <node name="rvizvisualisation" pkg="rviz" type="rviz" output="log" args="-d /home/f404/catkin_ws/src/VINS-Fusion/config/multi_agent_rviz.rviz" /> -->
     <node pkg="rosbag" type="record" name="bag_record" output="log" args="
     /mavros/imu/data

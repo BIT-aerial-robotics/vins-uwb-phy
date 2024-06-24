@@ -69,6 +69,14 @@ body_T_hinge: !!opencv-matrix
           0.0,0.0,0.0,0,
           0.0,0.0,0.0,-0.03,
           0,0,0,0]
+body_T_tag: !!opencv-matrix
+   rows: 4
+   cols: 4
+   dt: d
+   data: [0.0,0.0,0.0,-0.1,
+          0.0,0.0,0.0,0,
+          0.0,0.0,0.0,0.03,
+          0,0,0,0]
 
 #Multiple thread support
 multiple_thread: 1
